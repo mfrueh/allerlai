@@ -1,0 +1,194 @@
+= Spec: Specifications
+:toc:
+:spec-version: 1.0.0
+
+[[about]]
+== About this document
+
+[cols="1,3"]
+|===
+| Name        | spec-specifications
+| Version     | {spec-version}
+| Conforms to | spec-specifications 1.0.0
+| Requires    | none
+|===
+
+This document specifies how specs are written and versioned. A spec that follows it tells
+an implementer everything needed to build the artifact.
+
+The key words *MUST*, *MUST NOT*, *SHOULD*, *SHOULD NOT* and *MAY* in this document are to be
+interpreted as described in BCP 14 (RFC 2119, RFC 8174) when, and only when, they appear in all
+capitals.
+
+[[scope]]
+== Scope
+
+This document governs specification documents. A specification document, or spec, is a
+versioned standard that an implementation is built from and checked against. An artifact
+is anything built from a spec. Specs are themselves artifacts of this document. This
+document also governs how an artifact declares which spec it conforms to.
+
+Other kinds of documentation, such as explanatory texts, how-to guides and runbooks, are
+not governed. Who may change a spec, and how changes are reviewed, is not governed either.
+
+[[design-goal]]
+== Design Goal
+
+A spec serves two needs. A reader wants to understand *why* the system is the way it is.
+An implementer wants to know *what* to build without having to ask. The rules below derive
+from these two needs. They also keep specs short, because a spec is a reference, not a
+tutorial.
+
+This document applies the same restraint to itself. A rule belongs here only if it made an
+existing spec better, or if its absence caused a problem.
+
+[[generality]]
+== Generality
+
+A spec is *general* when its rules hold for any project, and *specific* when it is bound
+to one component or deployment.
+
+* A rule that holds for any project *MUST* live in a general spec. Rationale: a copy of a
+  general rule inside a specific spec drifts silently.
+* A general spec *MUST NOT* name a specific project, host, account, path or organisation.
+* Examples and defaults in any spec *MUST* use placeholders, not real environment-specific
+  values.
+* A specific spec *MAY* refine a general one: it adds rules or tightens general ones.
+* Where two specs govern one artifact, both *MUST* be followed.
+* If two specs conflict, the more specific one *MUST* win until the conflict is fixed.
+
+[[naming-layout]]
+== Naming & Layout
+
+* A spec *MUST* be written in AsciiDoc.
+* A spec's name *MUST* be `spec-<subject>`. `<subject>` *MUST* name what is governed, in
+  lowercase and dash-separated (`cli-tools`, `oci-images`, `specifications`).
+* A spec's name *MUST NOT* change. A spec that needs another name is a new spec.
+* The file name *MUST* be the name plus `.adoc`.
+* The title *SHOULD* be `= Spec: <Subject>`, followed by the attribute `:toc:`.
+* The header *MUST* set the attribute `:spec-version:` to the spec version as `X.Y.Z`,
+  without a prefix. Other mentions of the current version *SHOULD* reference it as
+  `+{spec-version}+`. Rationale: the version is bumped in one place, and a script can read it
+  from the header.
+* A spec *MUST* contain these sections. A section is mandatory unless marked optional. The
+  sections *SHOULD* follow this order and carry these titles. Rule sections are titled freely:
++
+--
+. *About this document*, with three parts:
+.. A two-column table with these rows:
+... `Name` *MUST* be the spec's name, written out literally. A copy or rendering of the
+    spec then still says what it is cited as.
+... `Version` *MUST* show the spec version; it *SHOULD* be `+{spec-version}+`.
+... `Conforms to` *MUST* follow <<conforms-to,the conformance line>>.
+... `Requires` *MUST* follow <<dependencies,the rule on dependencies>> or say `none`.
+.. One paragraph on what the spec is for.
+.. The reference to BCP 14 for the requirement levels, as given above.
+. *Scope*: what is governed, and what a reader might expect to find here but will not.
+. *Design Goal*: the needs the rules derive from, in a few sentences.
+. *Rule sections*: any number, grouped by topic. A format schema (see <<schema>>) is one
+  of them.
+. *Reference skeleton or examples* (optional).
+. *Per-project values* (optional): the placeholders an adopting project fills in.
+. *Open decisions* (optional, see <<open-decisions,the rule on open decisions>>).
+. *Changelog* (see <<changelog-format,the changelog format>>).
+--
+* Paragraphs *SHOULD* consist of complete sentences. List items and table cells *MAY* be
+  phrases.
+* Every section *SHOULD* carry an anchor (`+[[kebab-case-id]]+`). A section or rule *MUST*
+  get one as soon as anything cites it (in a list item, for example:
+  `+* [[kebab-case-id]]text+`).
+* A citation *MUST* name the anchor and, from outside the spec, also the spec's name. It
+  *SHOULD* take one of these forms: `+<<anchor>>+` within a spec, `spec-<subject>#<anchor>`
+  in prose elsewhere, `+xref:spec-<subject>.adoc#<anchor>[]+` in AsciiDoc elsewhere.
+* A citation of a rule within a spec *SHOULD* carry a label (`+<<anchor,label>>+`).
+  Rationale: a rule anchor has no title, so it would render as its raw id.
+* An id *MUST NOT* be reused after its section or rule is removed. An old citation then
+  breaks visibly instead of pointing at a different rule.
+
+[[rules]]
+== Rules
+
+* A requirement *MUST* state its level with one of these words. Text without one is
+  explanation.
+* A requirement *SHOULD* stand alone in a list item or table row, so that it is easy to
+  find and to cite. Rationale: a paragraph with several requirements hides some of them.
+* A non-obvious rule *SHOULD* carry its rationale in a clause, not a paragraph. A good
+  rationale names the goal behind the rule, so that a reader can decide a case the rule
+  does not cover.
+* A spec *MUST* decide the artifact's *contract*. The contract is everything others rely
+  on: interfaces, data formats, permissions, states and validation results. Two
+  implementations that meet the contract can replace each other. A missing decision about
+  the contract is a spec defect.
+* Everything outside the contract *MAY* stay open, such as the wording of log messages or
+  the internal structure. When something comes to rely on it, it *MUST* be added to the
+  contract by a spec change.
+* Where no single answer fits every artifact, a rule *MAY* leave the choice to the
+  artifact. Such a rule *MUST* name the options, the duties each option brings, and
+  where the artifact states its choice.
+* An artifact governed by such a rule *MUST* state its choice.
+* An author *MAY* check for missing decisions with a reconstruction test: an implementer
+  who knows only the spec rebuilds the artifact. Each difference in the contract from the
+  existing implementation is either a spec defect or an implementation defect.
+* [[open-decisions]]A decision about the contract that is left open on purpose *MUST* be
+  listed under *Open decisions* together with what is needed to close it.
+* Longer explanations *SHOULD* go into separate documentation.
+* A rule *SHOULD* be stated once; another spec that needs it links to it. Rationale: two
+  copies diverge on the next change.
+* A spec *SHOULD* be understandable on its own. Definitions *MAY* therefore be repeated.
+
+[[schema]]
+== Rules for format schemas
+
+* A spec that defines a configuration or data format *MUST* contain a schema section. It
+  *MUST* list every key with its type, its default, whether it is required, where it applies,
+  and what it does. This section decides what a key *means*.
+* An implementation *SHOULD* reject unknown keys. Rationale: a typo in an optional key is
+  otherwise silently ignored. A spec *MAY* decide otherwise, typically for data exchanged
+  between implementations, where ignoring unknown keys keeps old readers working with new
+  writers. The spec *MUST* state which behaviour applies.
+* Where the ecosystem offers a machine-readable schema format (JSON Schema, an argument-spec
+  format), the spec *SHOULD* also provide a schema in it and name where it lives.
+* A mismatch between the schema section and the machine-readable schema is a defect; the
+  schema section wins.
+
+[[dependencies]]
+== Dependencies between specs
+
+* A spec that builds on another *MUST* state it in the `Requires` row as
+  `spec-<subject> >= X.Y`, several entries separated by commas. Major.minor suffices:
+  patch versions never change rules.
+
+[[versioning]]
+== Versioning & Change Protocol
+
+* Each spec *MUST* be versioned independently with semver: a breaking rule change bumps
+  major, an additive rule bumps minor, a clarification bumps patch.
+* [[changelog-format]]The *Changelog* *MUST* list every version. It *SHOULD* list them
+  newest first, one list item per version, starting with the version in bold.
+* The text of a breaking changelog entry *MUST* start with `Breaking:`, after the version.
+* When a spec is retired, a final changelog entry *MUST* name its successor, if there is
+  one.
+* [[conforms-to]]Every artifact *MUST* state each spec and version it was last checked
+  against, one line per spec, as `Conforms to spec-<subject> X.Y.Z`. The full version pins
+  down exactly which text the check used. The line is separate from the artifact's own
+  version.
+* The line *MUST* sit in a top-of-file comment or, when the artifact cannot hold a comment,
+  in its README or metadata (an OCI label, for example). For a spec, it is the
+  `Conforms to` row, which holds `spec-specifications X.Y.Z`.
+* Artifacts maintained together *SHOULD* have one conformance summary, linked from their
+  entry document (typically a top-level README). The summary states which specs they
+  follow at which versions. Rationale: the per-artifact lines answer "is
+  this one current", the summary answers "what is current here".
+* The summary *SHOULD* contain a divergence list: the artifacts that still diverge, and how.
+  Artifacts that predate a spec version *MAY* stay on that list until they are brought up
+  to date.
+* A change of governed behaviour *MUST* land in the spec, with a version bump, before the
+  implementation. Rationale: otherwise the spec stops being the source of truth after the
+  first hotfix.
+* When a defect is found, the spec *SHOULD* be checked first. If the spec allowed the
+  defect, the spec *MUST* be fixed before the implementation.
+
+[[changelog]]
+== Changelog
+
+* *1.0.0* -- Initial spec.

@@ -1,0 +1,27 @@
+= allerlai
+:toc:
+
+Specs and guidelines for working with AI coding agents and for the software they build.
+
+[[contents]]
+== Contents
+
+[cols="1,3"]
+|===
+| link:agent/specs/spec-specifications.adoc[spec-specifications] | how specs are written, versioned and cited
+|===
+
+[[usage]]
+== Usage
+
+.Copying files into a project
+* Copy files verbatim, keeping their paths, and copy `LICENSE` along with them.
+* Copy from a release tag, and note in your project which tag you copied from. A spec also
+  states its own version inside the file; any other file is identified only by that release tag.
+* Put project-specific additions in separate files next to the copies, so a later sync overwrites
+  the copies without merging.
+
+[[license]]
+== License
+
+link:LICENSE[MIT].
