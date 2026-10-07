@@ -9,6 +9,7 @@ Specs and guidelines for working with AI coding agents and for the software they
 [cols="1,3"]
 |===
 | link:agent/specs/spec-specifications.adoc[spec-specifications] | how specs are written, versioned and cited
+| link:agent/specs/spec-cli.adoc[spec-cli] | the interface of command-line tools that operators run
 |===
 
 [[usage]]

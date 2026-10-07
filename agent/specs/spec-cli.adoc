@@ -1,0 +1,192 @@
+= Spec: CLI
+:toc:
+:spec-version: 1.0.0
+
+[[about]]
+== About this document
+
+[cols="1,3"]
+|===
+| Name        | spec-cli
+| Version     | {spec-version}
+| Conforms to | spec-specifications 1.0.0
+| Requires    | none
+|===
+
+This document specifies the interface of command-line tools that operators run: flags, help,
+arguments, output, exit codes and confirmation. Tools that follow it behave alike, so an operator
+who knows one knows them all, and scripts can drive them safely.
+
+The key words *MUST*, *MUST NOT*, *SHOULD*, *SHOULD NOT* and *MAY* in this document are to be
+interpreted as described in BCP 14 (RFC 2119, RFC 8174) when, and only when, they appear in all
+capitals.
+
+[[scope]]
+== Scope
+
+This document governs *operator-facing* command-line tools: commands an operator runs to inspect
+or change a system. A *dispatcher*, a tool that forwards a command line to another tool (for
+example on a remote host), is one of them. A tool's interface and observable behaviour are
+governed, in any implementation language.
+
+Not governed are commands that only other programs run (build and CI helpers, container
+entrypoints, test scripts, password helpers), and how a tool is implemented: its internal
+structure, function names and language idioms.
+
+[[design-goal]]
+== Design Goal
+
+An operator should be able to drive any tool without studying it first: the same flags mean the
+same thing everywhere, help is available at every level, and nothing changes state without the
+operator's consent. A script should be able to drive the same tool reliably: machine-readable
+output, meaningful exit codes, and no prompt that hangs without a terminal.
+
+[[naming]]
+== Naming & Installation
+
+* A command name *SHOULD* be short, lowercase and descriptive.
+* The executable *MUST NOT* carry a language extension (`.sh`, `.py`): the file is the command.
+* A tool that may be installed as a symlink on `PATH` *MUST* work when invoked through the
+  symlink, including finding its own resources.
+
+[[declared-choices]]
+== Declared Choices
+
+A tool *MUST* state these choices in a top-of-file comment, or in its README when the file
+cannot hold a comment.
+
+* [[error-handling]]*Error handling*, one of:
+** *fail-fast*: the tool stops at the first error and exits non-zero.
+** *continue-on-error*: the tool handles each item separately, keeps going after a failure,
+   reports all failures at the end and exits non-zero if any item failed.
++
+A fail-fast tool *MAY* run one multi-item operation continue-on-error, with the same duties.
+* [[working-directory]]*Working directory*, one of:
+** *cwd-independent*: the result does not depend on the caller's working directory. This
+   *SHOULD* be the default.
+** *cwd-relative*: the tool works relative to the caller's working directory, on purpose.
+
+[[flags]]
+== Global Flags
+
+* Every tool *MUST* accept these flags with exactly these spellings:
++
+[cols="1,1,3"]
+|===
+| Flag | Level | Meaning
+
+| `-h`, `--help`  | *MUST*   | Show help and exit `0` (see <<help>>).
+| `--version`     | *MUST*   | Show the tool's version and exit `0`. No short form.
+| `-q`, `--quiet` | *MUST*   | Suppress informational output; errors are still shown.
+| `-y`, `--yes`   | *MUST* for tools that change state | Answer confirmation prompts with yes (see <<confirmation>>).
+| `--json`        | *SHOULD* | Machine-readable output (see <<output>>).
+|===
+* Global flags *MUST NOT* take a value. Rationale: a valueless flag can be recognised anywhere
+  without ever swallowing a subcommand's option value.
+* Global flags *MUST* take effect wherever they appear on the line, including after the
+  subcommand and its arguments (`tool lock --service a --json`). A dispatcher's exception is in
+  <<dispatchers>>.
+
+[[help]]
+== Help & Version
+
+* `-h`/`--help` *MUST* be answered by the most specific subcommand on the line:
+  `tool --help` shows all commands, `tool status --help` and `tool --help status` show the help of
+  `status`.
+* A tool with subcommands *MUST* also provide `help [<subcommand>]` and `version`, behaving
+  exactly like `--help` and `--version`.
+* Help *SHOULD* show usage, options and examples, and for a tool with subcommands the list of
+  commands. A subcommand's help *SHOULD* show its own options and arguments.
+* `--help` and `--version` *SHOULD* work even when a dependency (see <<dependencies>>) is
+  missing.
+
+[[arguments]]
+== Arguments
+
+* A subcommand that takes two or more arguments *MUST* take them as named options
+  (`--service a --operation b`), accepted in any order. A subcommand with zero or one argument
+  *MAY* take it positionally.
+* A missing required option *MUST* fail with a message naming it.
+* An unknown option or command *MUST* fail with a message pointing at `help`.
+
+[[output]]
+== Output & Exit Codes
+
+* Output for the operator is the default: every command *MUST* say what it did, on what, and
+  with which outcome.
+* A tool *SHOULD* offer `--json`, unless it can only reasonably be used by an operator (an
+  interactive editor, a shell launcher).
+* A tool that offers `--json` *MUST* document that output with a JSON Schema shipped with the
+  tool and referenced from its README or help.
+* Under `--json`, stdout *MUST* carry only JSON, and a failure *MUST* be reported as a JSON object
+  with an `error` member on stderr.
+* Prompts and log lines *MUST* go to stderr, so that stdout stays parseable.
+* A tool *MUST* exit `0` on success and non-zero on failure.
+* A predicate command (`is-locked`, `should-run`) *MUST* answer with its exit code, so that
+  scripts can chain it: `tool should-run a && tool up a`. It *SHOULD* exit `0` for yes, `1` for no
+  and another non-zero code on error.
+
+[[confirmation]]
+== Confirmation
+
+* A command that changes state *MUST* ask the operator before acting. Changing state includes
+  changing or deleting files, starting or stopping services, taking or releasing locks, writing
+  decrypted secrets, and starting a backup or restore.
+* A read-only command *MUST NOT* prompt.
+* The prompt *MUST* name the operation, its object and key parameters, and default to no:
+  `Do you want to lock the service "a" with reason "backup"? [y/N]`.
+* `-y`/`--yes` *MUST* skip the prompt.
+* Without a terminal on stdin, or under `--json`, and without `-y`/`--yes`, the tool *MUST* fail
+  with a message asking for `-y`/`--yes`. It *MUST NOT* hang or go ahead.
+* A declined prompt *MUST NOT* change anything, and the tool *SHOULD* exit non-zero.
+
+[[dependencies]]
+== Dependencies
+
+* A tool *MUST* check that the programs, environment variables and directories it needs exist
+  before it does any work, and *MUST* name all missing ones in one message.
+* A dependency that only some subcommands need *MAY* be checked in those subcommands, but before
+  their first side effect, prompt or decryption.
+* A missing dependency *MUST NOT* pass for an empty result. Rationale: a continue-on-error run
+  whose JSON parser is missing otherwise reports "0 processed, 0 errors" and succeeds.
+* A tool *SHOULD* list the programs it needs in its README or help.
+
+[[dispatchers]]
+== Dispatchers
+
+* A dispatcher's passthrough command is a hard boundary: everything after it is the target
+  tool's command line and *MUST* be forwarded verbatim, every argument preserved exactly.
+* The dispatcher *MUST NOT* interpret or reject anything in the forwarded part, including
+  `--help`, `version` and unknown options. Its own global flags are recognised only before the
+  passthrough command; its own help for that command is reached via `help <command>`.
+* The target tool owns confirmation. The dispatcher *MUST NOT* prompt on its behalf and *MUST*
+  forward `-y`/`--yes`, `--json` and `-q`/`--quiet`.
+* The dispatcher *SHOULD* give the target tool an interactive terminal when an operator drives
+  it: output for the operator, no `-y`/`--yes`, and a terminal on stdin and stdout. Otherwise it
+  *MUST NOT* provide one, so that the target refuses an unconfirmed change instead of making it.
+* This decision *SHOULD* be taken from the final forwarded command line, so flags placed before
+  or after the passthrough command count alike.
+
+[[config]]
+== Configuration & State Files
+
+* A configuration or state file in JSON *MUST* have a JSON Schema and *MUST* be validated
+  against it before use. Other formats *MAY* be used; YAML is preferred for files that operators
+  edit.
+* Where a configuration has global defaults and per-entity entries, the per-entity value
+  *SHOULD* win.
+
+[[safety]]
+== Safety
+
+* Secrets *MUST NOT* appear in output, logs or error messages.
+* A file holding a secret *MUST* be created with restrictive permissions from the start, not
+  restricted afterwards.
+* Temporary files and directories *MUST* be removed when the tool exits, also on failure.
+* Taking a lock *MUST* be atomic, so that two concurrent tools cannot both hold it.
+
+[[changelog]]
+== Changelog
+
+* *1.0.0* -- Initial spec. Successor of spec-cli-tools 3.2.0: keeps its interface rules, leaves
+  implementation idioms to the implementation.
