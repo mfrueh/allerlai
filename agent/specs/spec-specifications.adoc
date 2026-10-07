@@ -1,6 +1,6 @@
 = Spec: Specifications
 :toc:
-:spec-version: 1.0.0
+:spec-version: 1.1.0
 
 [[about]]
 == About this document
@@ -9,7 +9,7 @@
 |===
 | Name        | spec-specifications
 | Version     | {spec-version}
-| Conforms to | spec-specifications 1.0.0
+| Conforms to | spec-specifications 1.1.0
 | Requires    | none
 |===
 
@@ -85,6 +85,8 @@ to one component or deployment.
 .. The reference to BCP 14 for the requirement levels, as given above.
 . *Scope*: what is governed, and what a reader might expect to find here but will not.
 . *Design Goal*: the needs the rules derive from, in a few sentences.
+. *Terms* (optional): the terms the spec gives a meaning of its own (see <<terms,the rule on
+  terms>>).
 . *Rule sections*: any number, grouped by topic. A format schema (see <<schema>>) is one
   of them.
 . *Reference skeleton or examples* (optional).
@@ -110,6 +112,8 @@ to one component or deployment.
 
 * A requirement *MUST* state its level with one of these words. Text without one is
   explanation.
+* [[terms]]A term the spec gives a meaning of its own *SHOULD* be defined under *Terms*, unless
+  *Scope* defines it to say what is governed.
 * A requirement *SHOULD* stand alone in a list item or table row, so that it is easy to
   find and to cite. Rationale: a paragraph with several requirements hides some of them.
 * A non-obvious rule *SHOULD* carry its rationale in a clause, not a paragraph. A good
@@ -191,4 +195,5 @@ to one component or deployment.
 [[changelog]]
 == Changelog
 
+* *1.1.0* -- Optional section *Terms* after *Design Goal* (<<terms,terms>>).
 * *1.0.0* -- Initial spec.
