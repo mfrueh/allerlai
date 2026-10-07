@@ -1,6 +1,6 @@
 = Spec: CLI
 :toc:
-:spec-version: 1.2.0
+:spec-version: 1.3.0
 
 [[about]]
 == About this document
@@ -95,6 +95,9 @@ A fail-fast tool *MAY* run one multi-item operation continue-on-error, with the 
   in <<dispatchers>>.
 * [[global-options]]A tool *MAY* define its own global options (`--site a`). A subcommand *MUST
   NOT* define an option named like a global flag or option.
+* [[option-variables]]A global option *MAY* have an environment variable that stands for it.
+  When set, the variable *MUST* act exactly like the option; when both are given, the option on
+  the command line *MUST* win. A tool *MUST* document each such variable with its option.
 
 [[help]]
 == Help & Version
@@ -204,6 +207,8 @@ A fail-fast tool *MAY* run one multi-item operation continue-on-error, with the 
 [[changelog]]
 == Changelog
 
+* *1.3.0* -- Environment variables that stand for global options
+  (<<option-variables,option variables>>).
 * *1.2.0* -- Terms defined; option values starting with `-` only as `--option=value`, and `--`
   ends the options (<<option-values,option values>>); a tool may define global options
   (<<global-options,global options>>).
