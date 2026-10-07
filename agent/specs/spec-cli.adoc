@@ -1,6 +1,6 @@
 = Spec: CLI
 :toc:
-:spec-version: 1.1.0
+:spec-version: 1.2.0
 
 [[about]]
 == About this document
@@ -9,7 +9,7 @@
 |===
 | Name        | spec-cli
 | Version     | {spec-version}
-| Conforms to | spec-specifications 1.0.0
+| Conforms to | spec-specifications 1.1.0
 | Requires    | none
 |===
 
@@ -40,6 +40,13 @@ An operator should be able to drive any tool without studying it first: the same
 same thing everywhere, help is available at every level, and nothing changes state without the
 operator's consent. A script should be able to drive the same tool reliably: machine-readable
 output, meaningful exit codes, and no prompt that hangs without a terminal.
+
+[[terms]]
+== Terms
+
+An *argument* is any input on a command line. An *option* is a named argument, a *flag* is an
+option without a value, and a *positional argument* is an unnamed one. A *global* flag or option
+applies to every command.
 
 [[naming]]
 == Naming & Installation
@@ -81,11 +88,13 @@ A fail-fast tool *MAY* run one multi-item operation continue-on-error, with the 
 | `-y`, `--yes`   | *MUST* for tools that change state | Answer confirmation prompts with yes (see <<confirmation>>).
 | `--json`        | *SHOULD* | Machine-readable output (see <<output>>).
 |===
-* Global flags *MUST NOT* take a value. Rationale: a valueless flag can be recognised anywhere
-  without ever swallowing a subcommand's option value.
-* Global flags *MUST* take effect wherever they appear on the line, including after the
-  subcommand and its arguments (`tool lock --service a --json`). A dispatcher's exception is in
-  <<dispatchers>>.
+* Global flags and options *MUST* take effect wherever they appear on the line before `--`
+  (`tool lock --service a --json`), and a flag *MUST* refuse a value (`--json=true`). Rationale:
+  by <<option-values>>, a word that starts with `-` is never a value, so a tool can pick out
+  global flags and options before it knows the subcommand's options. A dispatcher's exception is
+  in <<dispatchers>>.
+* [[global-options]]A tool *MAY* define its own global options (`--site a`). A subcommand *MUST
+  NOT* define an option named like a global flag or option.
 
 [[help]]
 == Help & Version
@@ -96,16 +105,20 @@ A fail-fast tool *MAY* run one multi-item operation continue-on-error, with the 
 * A tool with subcommands *MUST* also provide `help [<subcommand>]` and `version`, behaving
   exactly like `--help` and `--version`.
 * Help *SHOULD* show usage, options and examples, and for a tool with subcommands the list of
-  commands. A subcommand's help *SHOULD* show its own options and arguments.
+  commands. A subcommand's help *SHOULD* show its own options and positional arguments.
 * `--help` and `--version` *SHOULD* work even when a dependency (see <<dependencies>>) is
   missing.
 
 [[arguments]]
 == Arguments
 
-* A subcommand that takes two or more arguments *MUST* take them as named options
-  (`--service a --operation b`), accepted in any order. A subcommand with zero or one argument
-  *MAY* take it positionally.
+* A subcommand that takes two or more arguments *MUST* take them as options
+  (`--service a --operation b`), accepted in any order. A subcommand with one argument *MAY*
+  take it as a positional argument.
+* [[option-values]]An option's value is the next word or follows `=`. A word that starts with `-`
+  and is longer than one character is never a value; such a value *MUST* be given as
+  `--option=value`, so every option that takes a value *MUST* have a long form that accepts `=`.
+* `--` ends the options: every word after it is a positional argument.
 * A missing required option *MUST* fail with a message naming it.
 * An unknown option or command *MUST* fail with a message pointing at `help`.
 
@@ -156,8 +169,8 @@ A fail-fast tool *MAY* run one multi-item operation continue-on-error, with the 
 
 * A dispatcher's passthrough command is a hard boundary: everything after it is the target's
   command line and *MUST* be forwarded verbatim. The dispatcher *MUST NOT* interpret or reject
-  anything in it; its own global flags count only before the passthrough command, and its help
-  for that command is `help <command>`.
+  anything in it; its own global flags and options count only before the passthrough command,
+  and its help for that command is `help <command>`.
 * [[forwarding]]The dispatcher *MUST* forward `-y`/`--yes`, `--json` and `-q`/`--quiet` to a
   target that follows this spec. To any other target it *MUST* forward only the flags that target
   supports with the same meaning, and *MUST* document which flags it forwards or replaces.
@@ -191,6 +204,9 @@ A fail-fast tool *MAY* run one multi-item operation continue-on-error, with the 
 [[changelog]]
 == Changelog
 
+* *1.2.0* -- Terms defined; option values starting with `-` only as `--option=value`, and `--`
+  ends the options (<<option-values,option values>>); a tool may define global options
+  (<<global-options,global options>>).
 * *1.1.0* -- Dispatchers condensed; a target that does not follow this spec gets only the flags
   it supports (<<forwarding,forwarding>>).
 * *1.0.0* -- Initial spec. Successor of spec-cli-tools 3.2.0: keeps its interface rules, leaves
