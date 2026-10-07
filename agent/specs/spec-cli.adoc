@@ -1,6 +1,6 @@
 = Spec: CLI
 :toc:
-:spec-version: 1.0.0
+:spec-version: 1.1.0
 
 [[about]]
 == About this document
@@ -154,18 +154,21 @@ A fail-fast tool *MAY* run one multi-item operation continue-on-error, with the 
 [[dispatchers]]
 == Dispatchers
 
-* A dispatcher's passthrough command is a hard boundary: everything after it is the target
-  tool's command line and *MUST* be forwarded verbatim, every argument preserved exactly.
-* The dispatcher *MUST NOT* interpret or reject anything in the forwarded part, including
-  `--help`, `version` and unknown options. Its own global flags are recognised only before the
-  passthrough command; its own help for that command is reached via `help <command>`.
-* The target tool owns confirmation. The dispatcher *MUST NOT* prompt on its behalf and *MUST*
-  forward `-y`/`--yes`, `--json` and `-q`/`--quiet`.
-* The dispatcher *SHOULD* give the target tool an interactive terminal when an operator drives
-  it: output for the operator, no `-y`/`--yes`, and a terminal on stdin and stdout. Otherwise it
-  *MUST NOT* provide one, so that the target refuses an unconfirmed change instead of making it.
-* This decision *SHOULD* be taken from the final forwarded command line, so flags placed before
-  or after the passthrough command count alike.
+* A dispatcher's passthrough command is a hard boundary: everything after it is the target's
+  command line and *MUST* be forwarded verbatim. The dispatcher *MUST NOT* interpret or reject
+  anything in it; its own global flags count only before the passthrough command, and its help
+  for that command is `help <command>`.
+* [[forwarding]]The dispatcher *MUST* forward `-y`/`--yes`, `--json` and `-q`/`--quiet` to a
+  target that follows this spec. To any other target it *MUST* forward only the flags that target
+  supports with the same meaning, and *MUST* document which flags it forwards or replaces.
+  Rationale: an unsupported flag makes the target fail, or means something else there.
+* A flag that is not forwarded applies to the dispatcher only, except `--json`: if the
+  dispatcher knows the target's own option for JSON output, it *MAY* pass that option instead or
+  fail naming it; otherwise it *MUST* fail.
+* The target owns confirmation: the dispatcher *MUST NOT* prompt on its behalf.
+* The dispatcher *SHOULD* give the target an interactive terminal when an operator drives it (no
+  `-y`/`--yes`, a terminal on stdin and stdout, judged from the final forwarded command line), and
+  *MUST NOT* otherwise, so that a confirming target refuses instead of acting.
 
 [[config]]
 == Configuration & State Files
@@ -188,5 +191,7 @@ A fail-fast tool *MAY* run one multi-item operation continue-on-error, with the 
 [[changelog]]
 == Changelog
 
+* *1.1.0* -- Dispatchers condensed; a target that does not follow this spec gets only the flags
+  it supports (<<forwarding,forwarding>>).
 * *1.0.0* -- Initial spec. Successor of spec-cli-tools 3.2.0: keeps its interface rules, leaves
   implementation idioms to the implementation.
