@@ -10,6 +10,7 @@ Specs and guidelines for working with AI coding agents and for the software they
 |===
 | link:agent/specs/spec-specifications.adoc[spec-specifications] | how specs are written, versioned and cited
 | link:agent/specs/spec-cli.adoc[spec-cli] | the interface of command-line tools that operators run
+| link:agent/specs/spec-version-file.adoc[spec-version-file] | a project's version file: pins plus ddot.it facts, readable by any tool (draft, unreleased)
 |===
 
 [[usage]]
