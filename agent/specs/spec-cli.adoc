@@ -111,6 +111,10 @@ A fail-fast tool *MAY* run one multi-item operation continue-on-error, with the 
   commands. A subcommand's help *SHOULD* show its own options and positional arguments.
 * `--help` and `--version` *SHOULD* work even when a dependency (see <<dependencies>>) is
   missing.
+* A tool *MAY* refuse them while a dependency is missing, if its help or version cannot
+  sensibly be produced without it, or if it deems the dependency check more important. It
+  *MUST* then state the reason in a top-of-file comment, or in its README when the file cannot
+  hold one.
 
 [[arguments]]
 == Arguments
@@ -208,7 +212,8 @@ A fail-fast tool *MAY* run one multi-item operation continue-on-error, with the 
 == Changelog
 
 * *1.3.0* -- Environment variables that stand for global options
-  (<<option-variables,option variables>>).
+  (<<option-variables,option variables>>); a tool may refuse `--help` and `--version` while a
+  dependency is missing, stating why.
 * *1.2.0* -- Terms defined; option values starting with `-` only as `--option=value`, and `--`
   ends the options (<<option-values,option values>>); a tool may define global options
   (<<global-options,global options>>).
