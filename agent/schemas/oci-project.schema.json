@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/mfrueh/allerlai/0.6.0/agent/schemas/oci-project.schema.json",
+  "title": "oci-project.json",
+  "description": "Per-project values of spec-oci-images, at the root of the repository that holds the image directories.",
+  "type": "object",
+  "required": [
+    "$schema", "$conforms_to", "vendor", "authors", "source", "registry_host",
+    "registry_namespace", "label_ns", "prefix"
+  ],
+  "properties": {
+    "$schema": { "const": "https://raw.githubusercontent.com/mfrueh/allerlai/0.6.0/agent/schemas/oci-project.schema.json", "description": "The $id of this schema." },
+    "$conforms_to": { "const": "spec-oci-images 0.1.0", "description": "The spec version the file conforms to." },
+    "vendor": { "type": "string", "minLength": 1, "description": "The organisation, for the vendor label." },
+    "authors": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Contact details of the people or organisation responsible; joined with ', ' into the authors label."
+    },
+    "source": { "type": "string", "format": "uri", "pattern": "^https?://[^\\s]+$", "description": "URL of the repository that holds the image directories." },
+    "registry_host": { "type": "string", "minLength": 1, "description": "The registry host images are published to." },
+    "registry_namespace": { "type": "string", "minLength": 1, "description": "The namespace below that host." },
+    "label_ns": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+(\\.[a-z0-9-]+)+$",
+      "description": "Prefix of the project's own label keys, in reverse-DNS form."
+    },
+    "prefix": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$", "description": "Prefix of the project's variables in the version file." }
+  },
+  "patternProperties": {
+    "^x_": { "description": "Project additions; ignored." }
+  },
+  "additionalProperties": false
+}

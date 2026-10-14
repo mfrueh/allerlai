@@ -1,0 +1,531 @@
+= Spec: OCI Images
+:toc:
+:spec-version: 0.1.0
+
+[[about]]
+== About this document
+
+[cols="1,3"]
+|===
+| Name        | spec-oci-images
+| Version     | {spec-version}
+| Conforms to | spec-specifications 1.1.0
+| Requires    | spec-version-file >= 0.1
+|===
+
+This document specifies how a project builds, tags, labels and publishes its own OCI images,
+and how its deployments reference them.
+An image built from it says what it contains and where it came from, and a deployment can rely
+on what its reference names.
+Versions below 1.0.0 are drafts.
+
+The key words *MUST*, *MUST NOT*, *SHOULD*, *SHOULD NOT* and *MAY* in this document are to be
+interpreted as described in BCP 14 (RFC 2119, RFC 8174) when, and only when, they appear in all
+capitals.
+
+[[scope]]
+== Scope
+
+This document governs a project's *own images*: the images it builds itself, from its own
+software or by packaging upstream software.
+It governs their inputs, versions, channels, tags and labels, how they are built and published,
+and how the project's deployments reference them.
+
+How deployments reference third-party images is not governed.
+Neither is how a host lays out the files of running services, how long a registry keeps old
+builds, or supply-chain metadata such as SBOMs, provenance attestations and signatures.
+Images built for several platforms at once are not governed yet (<<open-decisions>>).
+Where this document says how a deployment references an image, it recommends; a deployment
+*MAY* choose otherwise, for example pin a single pre-release build by digest.
+
+[[design-goal]]
+== Design Goal
+
+Each fact is written once.
+A human chooses an image's version and its base images in one file; every tag, build argument
+and label derives from that file.
+
+A build can be told apart from every other build by its tag, and a stable build is never
+replaced under the same tag.
+A reader of an image finds in its labels what it packages, which build it is and which commit
+it came from.
+
+Stable software is deployed deliberately: a deployment names one build and moves only when
+someone edits it.
+Software without a stable release can instead follow a channel that rebuilds on a schedule.
+
+The rules stay small enough for a single operator to follow by hand, and precise enough for a
+shared build script to enforce.
+
+[[terms]]
+== Terms
+
+[cols="1,4"]
+|===
+| Term | Meaning
+
+| own image | An image the project builds itself (see <<scope>>).
+| version file | The project's version file per spec-version-file.
+| build file | The `Containerfile` of an image: how the image is built.
+| build definition | The file that drives the build tool for one image: its build arguments and static labels (for example a `compose.yaml`).
+| project file | The file `oci-project.json` with the per-project values (<<project-file>>).
+| image file | The file `oci-image.json` of an image, with its per-image values (<<image-file>>).
+| image directory | The directory of one image: its build file, its build definition, its image file and the files copied into the image.
+| build | A run that produces a unique tag. A test run that produces none is not a build in this document.
+| channel | The release line an image is built in, declared in its image file.
+| stable channel | The channel of images that package stable software; named `stable`.
+| pre-release channel | Any other channel.
+| version | The version of the software an image packages: its own semver, or the upstream version, as the `org.opencontainers.image.version` label holds it.
+| version scheme | How an image's versions look: `numeric` or `other` (<<versions>>).
+| tag form | The version as it appears in tags, `tagform(version)` (<<versions>>).
+| component | One piece of software in an image that packages several (<<components>>).
+| resolved version | A version the entry point determines instead of reading it from the version file (<<resolving>>).
+| packaging revision | The counter `r<N>` of changes to how an image is built, as opposed to what it packages.
+| stamp | The UTC start time of a build, to the minute: `strftime` `%Y%m%d_%H%M` (e.g. `20261013_1420`).
+| image name | The name of an image, declared once, in a place the project's tooling defines (for example the build definition).
+| reference | A deployment's image reference, `<name>:<tag>` with an optional `@<digest>`, where `<name>` is `$registry-host/$registry-namespace/<image name>`.
+| unique tag | The tag that names one build.
+| moving tag | A tag that moves from build to build: a channel tag or a version alias.
+| pinned deployment | A deployment that references one build.
+| following deployment | A deployment that references a channel tag and takes each new build.
+|===
+
+Names starting with `$` are per-project values (<<project-file>>);
+names in angle brackets stand for a part that differs per image or build.
+
+[[files]]
+== Files and layout
+
+* The build file *MUST* be named `Containerfile`.
+  Rationale: the name does not tie the image to one build tool.
+* A build definition in Compose format *MUST* be named `compose.yaml`.
+  Rationale: it is Compose's canonical default name.
+* Each image *MUST* have its own image directory.
+* Image directories *MUST* be kept apart from runtime definitions (stacks, service
+  configuration).
+* The version file and the project file *MUST* sit at the root of the repository that holds the
+  image directories.
+* Every image directory *MUST* hold an image file.
+* Image names *MUST* be unique within the project.
+  Rationale: the name becomes the registry path and part of the version-file variable names.
+* An image name *MUST* consist only of `a-z`, `0-9` and `-`, start with a letter and not end
+  with `-`.
+  Rationale: it maps one-to-one onto a version-file variable name.
+
+[[inputs]]
+== Inputs
+
+[[version-file]]
+=== Version file
+
+* An image's version *MUST* be held by the variable `$prefix_<IMAGE>_VERSION` in the version
+  file, where `<IMAGE>` is the image name in capitals with `-` written as `_`.
+  An image whose version is resolved has none (<<resolving>>).
+* An image's packaging revision *MUST* be held by `$prefix_<IMAGE>_REVISION` in the version
+  file, as the number `N` of `r<N>`.
+  Rationale: it is safe against history rewrites and shallow clones, which a count derived
+  from the repository history is not.
+* A component's version (<<components>>) *MUST* be held by `$prefix_<IMAGE>_<COMPONENT>_VERSION`,
+  where `<COMPONENT>` is the component name in capitals with `-` written as `_`, unless it is
+  resolved.
+  Image and component names *MUST* be chosen so that no two variable names coincide.
+* Every version and image reference the image directory names *MUST* be resolved
+  (<<resolving>>) or tracked in the version file: as an internal variable the build reads, or,
+  where a tool can read it only from the build file, as an external variable
+  (spec-version-file).
+* In a stable image, every image reference *MUST* carry the digest of the platform manifest for
+  the platform it is pulled for (`<name>:<tag>@<digest>`), not the digest of an image index.
+  Rationale: a change of what the build uses is then a deliberate edit with its own commit.
+* In a pre-release image, image references *SHOULD* carry a tag only.
+  Rationale: such an image picks up updates of the images it uses on every scheduled build.
+* A value from the version file, the project file or the image file *MUST NOT* be written a
+  second time in the image directory, and the image name not beyond its declaration: not in the
+  build definition, the build file or a manifest of own software (such as a package manifest),
+  and not as the default of a build argument.
+  Rationale: a second copy drifts on the next change.
+* Where a manifest format cannot read the value from outside, the build *MUST* set it in its
+  own build steps, never in the checkout, and the committed manifest *MUST* hold a placeholder
+  instead of a version.
+* The build *MUST* fail when a variable it needs is missing or empty.
+
+[[build-definition]]
+=== Build definition
+
+The format of a build definition is not governed; Compose is the recommended one.
+It passes the build arguments to the build file: the image's version and the image references,
+from the version file, and the build-time values the entry point provides.
+Its static labels (<<labels>>) sit in it or as `LABEL` in the build file.
+
+* The *base image* of an image is the image its final stage descends from: the image named by
+  that stage's `FROM`, or, where that names an earlier stage, the image that stage descends
+  from. An image whose final stage descends from `scratch` has no base image.
+* A build file *MAY* disable BuildKit's `InvalidDefaultArgInFrom` check
+  (`# check=skip=InvalidDefaultArgInFrom`).
+  Rationale: the check warns about a `FROM` argument without a default, which the rules of
+  <<version-file>> require.
+
+[[resolving]]
+=== Resolved versions
+
+* An image *MAY* have versions resolved at build time instead of taking them from the version
+  file: its own version, or a component's.
+* Its image file holds `upstream_policy_desc` (<<image-file>>) exactly when it resolves at
+  least one version; the entry point then calls the resolver for that image, which determines
+  the versions it resolves, and expects a version variable only for the others.
+* The entry point *MUST* resolve them before the build starts and pass each to the build file
+  as a build argument.
+  Rationale: the unique tag and the labels need the version before the build runs.
+* A resolved version then counts like one from the version file: as the image's version, or as
+  a component's (<<components>>).
+* An image in the stable channel *MUST* resolve only releases its upstream marks as stable.
+  Rationale: otherwise pre-release content would carry stable tags (<<channels>>).
+
+[[versions]]
+== Versions
+
+Every unique tag carries two numbers: the *version* of what the image packages, and the
+*packaging revision* of how it is built.
+
+* The version *MUST* be the version of the software the image packages, as that software states
+  it; the `org.opencontainers.image.version` label *MUST* hold it unchanged.
+* The version *MUST NOT* be empty.
+* Every image *MUST* declare its version scheme in its image file:
+** `numeric`: every version matches `^v?[0-9]+(\.[0-9]+)*$`.
+** `other`: any version; its tag form always follows the `other` rule below.
+* The build of a `numeric` image *MUST* fail when a version does not match that scheme.
+  Rationale: an image then never changes its tag form between builds.
+* A change of the version scheme *MUST* be documented like an incompatible packaging change.
+* The version of own software *MUST* be a semver `MAJOR.MINOR.PATCH` (scheme `numeric`), without
+  a `v` prefix, a pre-release part or build metadata.
+  Rationale: the channel marks pre-release content, and the stamp identifies the build.
+* Tags carry the version in its *tag form* `tagform(version)`:
+** `numeric`: the version without a leading `v`.
+** `other`: the version with `A-Z` lowercased (ASCII only), every other code point outside
+   `+a-z0-9._-+` replaced by one `+_+`, and `+_+` put in front.
+   Rationale: Unicode-aware lowercasing and byte-wise replacing differ between languages.
+* Rationale: the first character of a unique tag then tells the three kinds apart: a digit starts
+  a stable numeric version, `_` a stable `other` version, and a lowercase letter a channel.
+* The tag form can map different versions to the same string; the label, not the tag, is
+  authoritative for the version.
+* An image that is itself the product, without separate software (for example configuration),
+  *MUST* use an own semver that changes with what the image offers its users.
+* [[components]]An image that packages several software components *MUST* record each
+  component's version as the label `$label-ns.component.<name>`, whether the version comes
+  from the version file or is resolved; `<name>` consists only of `a-z`, `0-9` and `-`.
+* Its version *MUST* be the version all its components share; if they share none, it *MUST*
+  use an own semver that changes with what the image offers its users.
+* The packaging revision `N` *MUST* increase by one for a build when how the image is built
+  differs from its previous build: not what it packages (its versions), and not which build it
+  is (its stamp and other build-time values).
+* `N` *MUST* start at 1 and *MUST NOT* decrease or reset, also not when the version changes.
+  Rationale: a monotonic counter needs no reset rule and orders all builds of an image.
+* A packaging change that is incompatible for deployments (a renamed mount, a changed base
+  image, entrypoint, expected configuration or port) *MUST* be documented in the image's README or
+  changelog, naming the revision that introduces it.
+  Rationale: the counter does not tell compatible from incompatible changes.
+* A build that only refreshes inputs (new content behind an unchanged base image reference,
+  newer packages) keeps version and packaging revision; its new stamp tells it apart.
+* A unique tag *MUST NOT* exceed 128 characters, the limit of the OCI tag grammar; the build
+  *MUST* fail rather than shorten it.
+
+[[channels]]
+== Channels
+
+* Every image *MUST* declare its channel in its image file.
+* An image *SHOULD* be in a pre-release channel when the software it packages has no stable
+  release: alpha, beta, release candidate, or 0.x without a stability promise.
+* An own image *MAY* be in a pre-release channel for other reasons, for example while it is
+  experimental.
+* A channel name *MUST* start with a lowercase letter and consist only of `a-z`, `0-9` and `+_+`.
+  Rationale: tags of stable builds start with a digit or `+_+`, so the first character tells the
+  two apart, and `-` stays free to separate the parts of a tag.
+* `stable` *MUST NOT* be the name of a pre-release channel, and `latest` *MUST NOT* be the name of
+  any channel.
+
+[[tags]]
+== Tags
+
+[[tag-forms]]
+=== Forms
+
+.Unique tags
+[cols="1,2,2"]
+|===
+| Image | Form | Example
+
+| stable | `<tag form>-r<N>-<stamp>` | `1.2.0-r7-20261013_1420`, `_2.0_dfsg-1-r3-20261013_1420`
+| pre-release | `<channel>-<tag form>-r<N>-<stamp>` | `weekly-1.2.0-r3-20261013_1420`
+| pre-release, dirty (<<dirty>>) | the pre-release form plus `-dirty` | `weekly-1.2.0-r3-20261013_1420-dirty`
+|===
+
+* Every build *MUST* get exactly one unique tag, in the form of its kind above.
+* The stamp *MUST* be the build's start time in UTC, to the minute.
+  Rationale: a date alone collides on a second build the same day.
+* [[tag-regex]]A tool that parses a unique tag *SHOULD* match the whole tag against this
+  POSIX extended regular expression:
++
+----
+^(([a-z][a-z0-9_]*)-)?([0-9]+(\.[0-9]+)*|_[a-z0-9._-]*)-r([1-9][0-9]*)-([0-9]{8}_[0-9]{4})(-dirty)?$
+----
++
+.Parts of the expression
+[cols="1,3,3"]
+|===
+| Group | Part | Matches
+
+| 2 | `([a-z][a-z0-9_]*)` | the channel, optional (<<channels>>)
+| 3 | `+++[0-9]+(\.[0-9]+)*+++` or `+++_[a-z0-9._-]*+++` | the tag form, `numeric` or `other` (<<versions>>)
+| 5 | `([1-9][0-9]*)` | the packaging revision `N`, from 1
+| 6 | `([0-9]{8}_[0-9]{4})` | the stamp, its shape only
+| 7 | `(-dirty)` | the dirty marker, optional (<<dirty>>)
+|===
++
+Groups 1 and 4 only group; the others hold the parts.
+Groups 5 to 7 have a fixed form and are anchored at the end, and the two alternatives of group 3
+cannot match the same text, so a tag splits in only one way, even when its tag form contains
+`-`, and every engine yields the same groups.
+A tool *MUST NOT* split a tag at its first `-r`.
++
+It *MUST* also check what the expression cannot: the length, the reserved channel names, that
+only a tag with a channel carries `-dirty`, and that the stamp is a real date and time.
+The expression works in POSIX tools (such as bash `[[ =~ ]]`, `grep -E` and `sed -E`), in
+backtracking engines and in RE2.
+A tool that uses it *MUST* make it match the whole tag, with the engine's full-string match
+where it has one.
+Rationale: in some engines `^` and `$` also match at line breaks, so a tag read with its line
+break, or a string of several lines, would otherwise pass.
+* An image *MAY* also get further moving tags, for example version aliases.
+  It *SHOULD* check that they cannot collide with its unique tags or with tags of other
+  versions of its upstream scheme.
+* A clean (<<dirty>>) build of an image in a pre-release channel *MUST* also get the moving tag
+  `<channel>`.
+  Rationale: following deployments reference it.
+* A dirty build *MUST NOT* move any moving tag.
+  Rationale: a following deployment would otherwise run uncommitted code.
+* A build *MUST NOT* produce the tag `latest`.
+  Rationale: deployments reference a build or a channel; `latest` names neither, and many tools
+  fall back to it when a reference has no tag.
+* Every tag *MUST* be lowercase.
+  Rationale: some registries fold tags to lowercase, so tags that differ only in case collide.
+
+[[re-push]]
+=== Reusing a unique tag
+
+Registries do not protect tags: pushing a tag that exists replaces the image behind it.
+A unique tag stays unique only because no second build gets it.
+Moving tags are exempt from this section: they move by definition.
+
+* A unique tag *MUST NOT* be given to a second build.
+  Rationale: a deployment that references the tag without a digest trusts that it always names
+  the same build.
+* The build *MUST* fail when its unique tag already exists in the target registry or, for a
+  build that stays local, in the local image store of the building host.
+* Two builds that start in the same minute on different hosts can still collide; this residual
+  risk is accepted, and the digest recommendation of <<referencing>> covers it.
+* A project's images *SHOULD* be pushed from one place only (for example its CI), and builds of
+  one image there *SHOULD* run one at a time.
+
+[[dirty]]
+=== Builds from uncommitted changes
+
+* The `revision` label *MUST* name the commit checked out when the build ran (`HEAD`).
+* A build is *clean* when it is made from a clean checkout of that commit: exactly the
+  commit's content, and no file git ignores; otherwise it is *dirty*.
+  Rationale: the builder sends the whole context, regardless of what git ignores.
+* A build of an image in the stable channel *MUST NOT* be dirty.
+* A build of an image in a pre-release channel *SHOULD NOT* be dirty.
+* It *MAY* be, if its `revision` label reads `<commit>-dirty` and its unique tag ends in
+  `-dirty` (for example `weekly-1.2.0-r3-20261013_1420-dirty`).
+  Such a tag is a unique tag like any other; <<re-push>> applies to it.
+
+[[labels]]
+== Labels
+
+Labels sit in the image configuration, where most tools read them, and survive a local load.
+
+.Required labels
+[cols="2,1,4"]
+|===
+| Key | Required | Value
+
+| `org.opencontainers.image.title` | yes | The image name.
+| `org.opencontainers.image.description` | yes | One line: what the image is.
+| `org.opencontainers.image.version` | yes | The version of the packaged software, unchanged (<<versions>>).
+| `org.opencontainers.image.revision` | yes | The commit the build was made from (<<dirty>>).
+| `org.opencontainers.image.created` | yes | The build time, RFC 3339, in UTC.
+| `org.opencontainers.image.source` | yes | `$source`.
+| `org.opencontainers.image.vendor` | yes | `$vendor`.
+| `org.opencontainers.image.authors` | yes | `$authors`.
+| `org.opencontainers.image.base.name` | stable with a base image: yes; pre-release: *SHOULD* | The fully qualified reference of the base image the build used.
+| `org.opencontainers.image.base.digest` | stable with a base image: yes; pre-release: *SHOULD* | The digest of the platform manifest of the base image the build actually used; for a stable image the same value as its pin.
+| `$label-ns.build` | yes | The unique tag of the build.
+| `$label-ns.conforms-to` | yes | `spec-oci-images X.Y.Z`, the version of this spec the build was made under (spec-specifications#conforms-to).
+| `$label-ns.component.<name>` | for each component of an image with several | The version of component `<name>` (<<components>>).
+|===
+
+* The build *MUST* set every required label itself.
+* Every other label the base image carries *MUST* be removed, or, where the build tool cannot
+  remove labels, set to an empty value, unless its image file lists it in `kept_base_labels`;
+  the entry point reads the base image's labels before each build.
+  Rationale: labels are inherited from the base image and on into every container, where
+  tools act on them; a key left alone shows the base image's value.
+* `created`, `revision`, `$label-ns.build`, `$label-ns.conforms-to` and resolved
+  `+$label-ns.component.*+` labels *MUST* be
+  set at build time: the entry point passes their values in, as variables the build definition
+  interpolates or as build arguments the build file turns into `LABEL`s.
+  Their values *MUST NOT* be written literally into the image directory.
+* `revision` *MUST* name the commit of the repository that holds the image directory (<<dirty>>),
+  also when the packaged software comes from upstream.
+  For such images this deviates from the OCI wording, which ties `revision` to the packaged
+  software.
+
+[[building]]
+== Building
+
+* A project *SHOULD* build all its images through one shared entry point, which computes the
+  stamp, derives tags and labels, and enforces <<re-push>> and <<dirty>>.
+  Rationale: build logic copied into each image drifts apart.
+* A shared entry point *MUST* state `Conforms to spec-oci-images X.Y.Z` in a comment at its top;
+  it sets the `$label-ns.conforms-to` label to that version.
+* [[gate]]A build *SHOULD* verify its result, for example with a test step in its build file.
+* Moving tags *MUST NOT* move for a build that failed, including any verification it runs.
+* An image in a pre-release channel *SHOULD* be rebuilt on a schedule the project defines.
+  Rationale: following deployments rely on new builds arriving.
+* An image in the stable channel *SHOULD* be rebuilt when one of its inputs changes.
+
+[[referencing]]
+== Referencing images
+
+Unlike the rest of this document, this section only recommends: its rules are *SHOULD* or
+*MAY*, and a deployment may choose otherwise (<<scope>>).
+
+.Deployment modes
+[cols="1,2,2,2"]
+|===
+| Mode | Recommended for | Reference | Moves when
+
+| pinned | images in the stable channel | `<name>:<unique tag>@<digest>` | someone edits the reference
+| following | images in a pre-release channel | `<name>:<channel>` | the deployment's update step runs
+|===
+
+* A deployment of an image in the stable channel *SHOULD* reference its unique tag, not a
+  version alias.
+  Rationale: every alias moves; the shorter ones also across packaging changes or versions.
+* A pinned deployment *SHOULD* reference the unique tag together with the digest that tag
+  resolves to.
+  Rationale: a reference with a digest never gets different content, even if the tag is
+  replaced.
+* It *MAY* reference the unique tag alone; it then trusts that the tag is never pushed again.
+* A following deployment *SHOULD* be updated by an update step of its own that pulls the channel
+  tag explicitly; how and when it runs is the project's choice.
+* Only that update step *SHOULD* pull a new build; any other change to the deployment, such as
+  a new configuration value, *SHOULD* leave the running build as it is.
+  Rationale: otherwise a new build goes live unnoticed, as a side effect of an unrelated
+  change.
+* A deployment *MAY* use an image that was built locally and never pushed to a registry.
+  All rules of this document apply to it unchanged.
+* The digest recommendation applies where the image has a digest; a locally built image has none
+  in some image stores.
+* A deployment that references a local image by tag only *SHOULD* forbid pulling it (Compose:
+  `pull_policy: never`).
+  Rationale: otherwise a missing local image is pulled from whichever registry its name implies.
+
+[[schemas]]
+== Project file and image file
+
+Both files are JSON objects.
+Their machine-readable JSON Schemas are published with this spec as
+`agent/schemas/oci-project.schema.json` and `agent/schemas/oci-image.schema.json`, at the release
+tag that publishes each spec version; where the two differ from this section, this section
+wins.
+
+* Every file *MUST* hold `$conforms_to`, the version it conforms to as `spec-oci-images X.Y.Z`
+  (spec-specifications#conforms-to), and `$schema`, the `$id` of that version's schema.
+* The entry point *MUST* refuse a file whose `$conforms_to` it does not implement, or whose
+  `$schema` differs from the `$id` of its schema.
+* Keys starting with `x_` are the project's own and *MUST* be ignored.
+* Any other key the schema does not list *MUST* be rejected.
+  Rationale: a misspelt key would otherwise be dropped silently.
+* No key has a default; `upstream_policy_desc` is absent when the image resolves no version.
+
+[[project-file]]
+.Project file, `oci-project.json`
+[cols="2,2,1,4"]
+|===
+| Key | Type | Required | Meaning
+
+| `$schema` | URL | yes | The `$id` of this file's schema for the version in `$conforms_to`.
+| `$conforms_to` | `spec-oci-images X.Y.Z` | yes | The spec version the file conforms to.
+| `vendor` (`$vendor`) | string | yes | The organisation, for the `vendor` label.
+| `authors` (`$authors`) | non-empty list of strings | yes | Contact details of the people or organisation responsible; the `authors` label holds them joined with `, `.
+| `source` (`$source`) | URL | yes | The repository that holds the image directories.
+| `registry_host` (`$registry-host`) | string | yes | The registry host images are published to.
+| `registry_namespace` (`$registry-namespace`) | string | yes | The namespace below that host.
+| `label_ns` (`$label-ns`) | reverse-DNS string | yes | The prefix of the project's own label keys.
+| `prefix` (`$prefix`) | `[A-Z][A-Z0-9_]*` | yes | The prefix of the project's variables in the version file (`PRJ` in the example).
+|===
+
+[[image-file]]
+.Image file, `oci-image.json`
+[cols="2,2,1,4"]
+|===
+| Key | Type | Required | Meaning
+
+| `$schema` | URL | yes | The `$id` of this file's schema for the version in `$conforms_to`.
+| `$conforms_to` | `spec-oci-images X.Y.Z` | yes | The spec version the file conforms to.
+| `channel` | channel name | yes | `stable` or the name of a pre-release channel (<<channels>>).
+| `version_scheme` | `numeric` or `other` | yes | How the image's versions look (<<versions>>).
+| `kept_base_labels` | list of label keys, possibly empty | yes | The base-image labels the image keeps (<<labels>>).
+| `upstream_policy_desc` | non-empty string | when the image resolves a version | An informal description of how the resolved versions are chosen (<<resolving>>).
+|===
+
+[[example]]
+== Example
+
+A version file of a stable image and the tags of its builds, with placeholders.
+
+.Version file (excerpt)
+[source,sh]
+----
+# PRJ_TOOL_VERSION ..pins.. tool
+#   ..source.. https://<registry-host>/<registry-namespace>/tool
+#   ..checked.. 2026-01-15
+PRJ_TOOL_VERSION=1.2.0
+
+# PRJ_TOOL_REVISION ..pins.. tool packaging
+#   ..source.. https://<registry-host>/<registry-namespace>/tool
+#   ..checked.. 2026-01-15
+PRJ_TOOL_REVISION=7
+
+# PRJ_ALPINE_IMAGE ..pins.. alpine
+#   ..version.. 3.22.2
+#   ..source.. https://alpinelinux.org/releases/
+#   ..checked.. 2026-01-15
+PRJ_ALPINE_IMAGE=alpine:3.22@sha256:0123abcd
+----
+
+.Tags
+* A stable build on 2026-01-15 at 14:20 UTC, packaging revision 7: unique
+  `1.2.0-r7-20260115_1420`, moving `1.2.0`.
+* The same image in a channel `weekly`, whose version file pins `alpine:3.22` without a digest:
+  unique `weekly-1.2.0-r7-20260115_1420`, moving `weekly`.
+
+[[open-decisions]]
+== Open decisions
+
+* Images built for several platforms: how their references are pinned (one pin per platform)
+  and labelled.
+  Needed to close it: a first image that needs more than one platform.
+
+[[changelog]]
+== Changelog
+
+* *0.1.0* -- Breaking: complete rewrite as a versioned spec conforming to spec-specifications
+  1.1.0; replaces the unversioned conventions.
+  The chosen version lives in the version file (spec-version-file), not in the compose `image:`
+  tag; every build gets a unique tag of version, packaging revision and stamp, plus moving
+  tags; channels separate stable and pre-release images; the version is that of the packaged
+  software, packaging changes raise the revision, refreshes only the stamp; labels follow the
+  OCI wording and add the build identity; per-project and per-image values live in
+  `oci-project.json` and `oci-image.json`, with JSON Schemas; deployment modes are recommended;
+  the host directory layout and the fixed build path are dropped.

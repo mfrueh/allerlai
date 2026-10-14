@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/mfrueh/allerlai/0.6.0/agent/schemas/oci-image.schema.json",
+  "title": "oci-image.json",
+  "description": "Per-image values of spec-oci-images, in each image directory.",
+  "type": "object",
+  "required": ["$schema", "$conforms_to", "channel", "version_scheme", "kept_base_labels"],
+  "properties": {
+    "$schema": { "const": "https://raw.githubusercontent.com/mfrueh/allerlai/0.6.0/agent/schemas/oci-image.schema.json", "description": "The $id of this schema." },
+    "$conforms_to": { "const": "spec-oci-images 0.1.0", "description": "The spec version the file conforms to." },
+    "channel": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "not": { "const": "latest" },
+      "description": "stable, or the name of a pre-release channel."
+    },
+    "version_scheme": { "enum": ["numeric", "other"], "description": "How the image's versions look." },
+    "kept_base_labels": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Keys of base-image labels the image keeps; empty to keep none."
+    },
+    "upstream_policy_desc": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Informal description of how resolved versions are chosen; present only when a version is resolved."
+    }
+  },
+  "patternProperties": {
+    "^x_": { "description": "Project additions; ignored." }
+  },
+  "additionalProperties": false
+}

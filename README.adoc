@@ -11,6 +11,7 @@ Specs and guidelines for working with AI coding agents and for the software they
 | link:agent/specs/spec-specifications.adoc[spec-specifications] | how specs are written, versioned and cited
 | link:agent/specs/spec-cli.adoc[spec-cli] | the interface of command-line tools that operators run
 | link:agent/specs/spec-version-file.adoc[spec-version-file] | a project's version file: pins plus ddot.it facts, readable by any tool (draft)
+| link:agent/specs/spec-oci-images.adoc[spec-oci-images] | how a project builds, tags, labels and publishes its own OCI images, and how deployments reference them (draft)
 |===
 
 [[usage]]
@@ -22,6 +23,19 @@ Specs and guidelines for working with AI coding agents and for the software they
   states its own version inside the file; any other file is identified only by that release tag.
 * Put project-specific additions in separate files next to the copies, so a later sync overwrites
   the copies without merging.
+
+[[releasing]]
+== Releasing
+
+. Choose the next release tag: the semver of this repository (for example `0.6.0`).
+. For every spec whose version changes, set its `:spec-version:` and its changelog.
+. For every schema of such a spec under `agent/schemas/`, set its `$id` and the `const` of its
+  `$schema` to the schema's URL at the new tag, and the `const` of its `$conforms_to` to the new
+  spec version.
+. Check the schemas (`check-jsonschema --check-metaschema`) and render the specs
+  (`asciidoctor -v --failure-level INFO`).
+. Update the contents table above.
+. Commit, tag the commit with the new tag and push both.
 
 [[license]]
 == License
