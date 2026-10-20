@@ -1,6 +1,6 @@
 = Spec: Specifications
 :toc:
-:spec-version: 1.1.0
+:spec-version: 2.0.0
 
 [[about]]
 == About this document
@@ -9,7 +9,7 @@
 |===
 | Name        | spec-specifications
 | Version     | {spec-version}
-| Conforms to | spec-specifications 1.1.0
+| Conforms to | spec-specifications 2.0.0
 | Requires    | none
 |===
 
@@ -61,8 +61,23 @@ to one component or deployment.
 == Naming & Layout
 
 * A spec *MUST* be written in AsciiDoc.
-* A spec's name *MUST* be `spec-<subject>`. `<subject>` *MUST* name what is governed, in
-  lowercase and dash-separated (`cli-tools`, `oci-images`, `specifications`).
+* [[spec-name]]A spec's name *MUST* be `spec-<subject>` or `spec-<scope>-<subject>`; `<name>`
+  below stands for it.
+  `-` separates the parts of a name, `_` joins the words inside a part.
+  Rationale: the name splits into its parts without guessing, and an identifier inside it
+  stays intact.
+* `<subject>` *MUST* name what is governed, in lowercase ASCII letters and digits, with `_`
+  between words (`specifications`, `cli`, `version_file`).
+  An identifier of the governed component that fits these characters *MUST* be written
+  verbatim (`web_server`).
+* [[name-scope]]`<scope>` is the ecosystem whose kind of artifact the spec governs, written as the
+  ecosystem names itself, in lowercase (`oci` in `spec-oci-images`, `ansible` in
+  `spec-ansible-roles`).
+  A spec that governs artifacts of one ecosystem *MUST* carry its scope; any other spec *MUST
+  NOT* carry one.
+  A name has at most one scope.
+* A new spec *SHOULD* reuse a scope that is already in use.
+  Rationale: one ecosystem, one scope; the specs of an ecosystem then sort together.
 * A spec's name *MUST NOT* change. A spec that needs another name is a new spec.
 * The file name *MUST* be the name plus `.adoc`.
 * The title *SHOULD* be `= Spec: <Subject>`, followed by the attribute `:toc:`.
@@ -100,8 +115,8 @@ to one component or deployment.
   get one as soon as anything cites it (in a list item, for example:
   `+* [[kebab-case-id]]text+`).
 * A citation *MUST* name the anchor and, from outside the spec, also the spec's name. It
-  *SHOULD* take one of these forms: `+<<anchor>>+` within a spec, `spec-<subject>#<anchor>`
-  in prose elsewhere, `+xref:spec-<subject>.adoc#<anchor>[]+` in AsciiDoc elsewhere.
+  *SHOULD* take one of these forms: `+<<anchor>>+` within a spec, `<name>#<anchor>`
+  in prose elsewhere, `+xref:<name>.adoc#<anchor>[]+` in AsciiDoc elsewhere.
 * A citation of a rule within a spec *SHOULD* carry a label (`+<<anchor,label>>+`).
   Rationale: a rule anchor has no title, so it would render as its raw id.
 * An id *MUST NOT* be reused after its section or rule is removed. An old citation then
@@ -159,7 +174,7 @@ to one component or deployment.
 == Dependencies between specs
 
 * A spec that builds on another *MUST* state it in the `Requires` row as
-  `spec-<subject> >= X.Y`, several entries separated by commas. Major.minor suffices:
+  `<name> >= X.Y`, several entries separated by commas. Major.minor suffices:
   patch versions never change rules.
 
 [[versioning]]
@@ -173,7 +188,7 @@ to one component or deployment.
 * When a spec is retired, a final changelog entry *MUST* name its successor, if there is
   one.
 * [[conforms-to]]Every artifact *MUST* state each spec and version it was last checked
-  against, one line per spec, as `Conforms to spec-<subject> X.Y.Z`. The full version pins
+  against, one line per spec, as `Conforms to <name> X.Y.Z`. The full version pins
   down exactly which text the check used. The line is separate from the artifact's own
   version.
 * The line *MUST* sit in a top-of-file comment or, when the artifact cannot hold a comment,
@@ -183,6 +198,10 @@ to one component or deployment.
   entry document (typically a top-level README). The summary states which specs they
   follow at which versions. Rationale: the per-artifact lines answer "is
   this one current", the summary answers "what is current here".
+* [[spec-index]]The summary *SHOULD* also list each spec the artifacts' repository defines,
+  with its location as a path relative to the repository's root.
+  Rationale: specs are cited by name, and the summary is the one place that maps a name to its
+  file.
 * The summary *SHOULD* contain a divergence list: the artifacts that still diverge, and how.
   Artifacts that predate a spec version *MAY* stay on that list until they are brought up
   to date.
@@ -195,5 +214,10 @@ to one component or deployment.
 [[changelog]]
 == Changelog
 
+* *2.0.0* -- Breaking: a name's subject joins its words with `_` (was: `-`); `-` only
+  separates the parts of a name, which may carry a scope, the ecosystem whose artifacts the
+  spec governs (<<spec-name,name>>, <<name-scope,scope>>).
+  Added: the conformance summary lists the specs a repository defines, with their location
+  (<<spec-index,spec index>>).
 * *1.1.0* -- Optional section *Terms* after *Design Goal* (<<terms,terms>>).
 * *1.0.0* -- Initial spec.
