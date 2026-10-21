@@ -10,9 +10,25 @@ Specs and guidelines for working with AI coding agents and for the software they
 |===
 | link:agent/specs/spec-specifications.adoc[spec-specifications] | how specs are written, versioned and cited
 | link:agent/specs/spec-cli.adoc[spec-cli] | the interface of command-line tools that operators run
-| link:agent/specs/spec-version-file.adoc[spec-version-file] | a project's version file: pins plus ddot.it facts, readable by any tool (draft)
+| link:agent/specs/spec-version_file.adoc[spec-version_file] | a project's version file: pins plus ddot.it facts, readable by any tool (draft)
 | link:agent/specs/spec-oci-images.adoc[spec-oci-images] | how a project builds, tags, labels and publishes its own OCI images, and how deployments reference them (draft)
 |===
+
+Retired specs, kept for artifacts that still conform to them:
+link:agent/specs/archive/spec-version-file.adoc[spec-version-file] (successor: spec-version_file).
+
+[[spec-conformance]]
+== Spec conformance
+
+The specs here conform to spec-specifications 2.0.0, except retired ones.
+The contents table above maps each spec's name to its location.
+
+.Divergences
+* spec-cli: the rule on where a tool states its choices (spec-cli#declared-choices) sits in a
+  paragraph, not in a list item of its own.
+* spec-oci-images names the path of its schemas in this repository, although it is a general
+  spec; the schema rule asks it to say where they live.
+* spec-version-file (retired) conforms to spec-specifications 1.1.0 only; its name breaks 2.0.0.
 
 [[usage]]
 == Usage
@@ -34,7 +50,7 @@ Specs and guidelines for working with AI coding agents and for the software they
   spec version.
 . Check the schemas (`check-jsonschema --check-metaschema`) and render the specs
   (`asciidoctor -v --failure-level INFO`).
-. Update the contents table above.
+. Update the contents table and the spec conformance section above.
 . Commit, tag the commit with the new tag and push both.
 
 [[license]]

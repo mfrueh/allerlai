@@ -1,6 +1,6 @@
 = Spec: Version File
 :toc:
-:spec-version: 0.1.0
+:spec-version: 0.1.1
 
 [[about]]
 == About this document
@@ -216,4 +216,6 @@ PRJ_GALAXY_DEPS_VERSION=__NOT_MANAGED_BY_versions.env__
 [[changelog]]
 == Changelog
 
+* *0.1.1* -- Retired; successor: spec-version_file 0.2.0, the same rules under a name that
+  conforms to spec-specifications 2.0.0.
 * *0.1.0* -- Initial draft.

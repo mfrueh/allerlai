@@ -1,0 +1,229 @@
+= Spec: Version File
+:toc:
+:spec-version: 0.3.0
+
+[[about]]
+== About this document
+
+[cols="1,3"]
+|===
+| Name        | spec-version_file
+| Version     | {spec-version}
+| Conforms to | spec-specifications 2.0.0
+| Requires    | none
+|===
+
+This document specifies a *version file*: one file per project that holds the versions the
+project installs or deploys, readable alike by the shell, by Docker and Compose and by
+Ansible's `ini` lookup with `type=properties`.
+Facts about each version, such as where it is released and why it was chosen,
+sit next to it as link:https://ddot.it/[ddot.it] triples in comments.
+
+The key words *MUST*, *MUST NOT*, *SHOULD*, *SHOULD NOT* and *MAY* in this document are to be
+interpreted as described in BCP 14 (RFC 2119, RFC 8174) when, and only when, they appear in all
+capitals.
+
+[[scope]]
+== Scope
+
+This document governs the version file of a project: its syntax, its variables, the triples
+that describe them, and how consumers use them. It also governs how the file refers to
+versions that must live elsewhere.
+
+Not governed are how a consumer applies a version (an install command, a template), how
+versions are found or bumped (by hand or by an update bot), and the formats of files that a
+tool requires for its own pins, such as lock files or dependency manifests.
+
+[[design-goal]]
+== Design Goal
+
+An operator should find every version a project uses in one file, together with where to
+look for the next one. Any tool should be able to read a value without a parser library, so
+that installing the first tool needs nothing but a shell. Facts meant for people should stay
+out of the data that tools read, yet be precise enough for a script to check them.
+
+[[terms]]
+== Terms
+
+A *pin* is a value that selects a release or a release line: a version, a package name or
+an image reference. A *variable* is a name with a value in the version file. An *external*
+variable has the <<external-variables,marker value>>: its pin lives in another file, because a
+tool reads it only from there. Any other variable is *internal*. A *variant* is a variable
+with a `..variant of..` triple: it deviates from another variable, its *base*, for one target
+such as a host. A *consumer* is
+anything that reads a variable. A *triple* is a ddot.it statement
+`subject ..predicate.. object`; a variable's triples are those with its name as subject. They
+describe the pin, not the software, which may have several pins.
+
+[[file]]
+== File
+
+* The file *SHOULD* be named `versions.env` and *SHOULD* sit in the project root. Rationale:
+  the `.env` extension tells readers that the file holds shell-sourced assignments.
+* The file *MUST* be committed, and the project's ignore patterns for `*.env` *MUST NOT* cover
+  it. Rationale: `.env` files are often live, git-ignored configuration; this one holds no
+  environment-specific values.
+* The file *MUST* be UTF-8 text without a byte order mark, with LF line endings. Rationale: a
+  sourcing shell runs a byte order mark as part of a command.
+* The last line *SHOULD* end in LF.
+* Every line *MUST* be one of:
+** a blank line (whitespace-only lines count as blank);
+** a comment line, starting with `#`;
+** an assignment line `NAME=VALUE`, where `NAME` starts the line and matches
+   `[A-Z][A-Z0-9_]*`, the first `=` separates `NAME` and `VALUE`, and `VALUE` follows
+   <<value-chars,the character rule>>.
+* [[conformance-line]]The first line *MUST* be `+# Conforms to spec-version_file X.Y.Z+`, as
+  spec-specifications#conforms-to requires.
+
+[[assignments]]
+== Assignments
+
+* A name *MUST NOT* appear twice in the file.
+* `VALUE` *MUST NOT* be empty.
+* [[value-chars]]`VALUE` *MUST* consist only of the characters listed in
+  <<value-chars-table,the table below>>. Rationale: such a value reads identically when the
+  shell sources the file, in Compose, in `docker --env-file` and in Ansible's `ini` lookup with
+  `type=properties`, and no reader expands it. `%` stays out because that lookup interpolates
+  it by default.
++
+[[value-chars-table]]
+.Characters allowed in values
+[cols="1,3,3"]
+|===
+| Character | Needed by | Read literally because
+
+| `A-Z` `a-z` `0-9` | every version string; uppercase in OCI tags (`RELEASE.2025-04-22T22-12-26Z`) | not special to any reader
+| `.` `-` | nearly every version string | not special to any reader
+| `_` | OCI tags, FreeBSD port revisions (`4.24.7_1`) | not special to any reader
+| `:` | image tag separator, registry port, Debian epoch (`5:28.0.1-1`), `sha256:` digests | the shell reads it as text, except before `~` (see the extra rules); Compose ends the name at the first `=` or `:`, and a name contains neither
+| `/` | image repository paths | not special to any reader
+| `@` | image digests | the shell gives it a meaning only after `$`, which is not allowed
+| `+` | Debian versions (`2.0+dfsg-1`), semver build metadata, PEP 440 local versions | the shell gives it a meaning only in `+=`, which a name cannot end with
+| `,` | FreeBSD port epochs (`1.2_1,1`) | the shell gives it a meaning only inside `{…}`, which is not allowed
+| `~` | Debian and Ubuntu versions (`+1-1~ubuntu.24.04~noble+`) | see the extra rules
+|===
++
+.Extra rules
+** `VALUE` *MUST NOT* start with `~`. Rationale: the shell expands a leading `~` in an
+   assignment to a home directory (`~foo` becomes the home of user `foo`).
+** `VALUE` *MUST NOT* contain `:~`. Rationale: in an assignment the shell also expands `~`
+   directly after a `:`, as in `PATH`-like values; Compose and Docker do not.
+* A variant's `VALUE` *SHOULD* differ from its base's. Rationale: an equal variant no longer
+  follows its base's next bump.
+* [[external-variables]]The `VALUE` of an external variable *MUST* be
+  `+__NOT_MANAGED_BY_versions.env__+`. Rationale: the file stays a complete index without a
+  second copy of the pin, and the value fails loudly wherever it is used as a pin.
+* A name *SHOULD* end in a suffix that names the type of its value: `_VERSION` (a version
+  string as the installer takes it, `1.2.3`), `_IMAGE` (an OCI image reference with tag
+  and/or digest) or `_PKG` (a package name that selects a release line, `foo42`). Other types
+  *MAY* get other suffixes.
+* `NAME` *MUST NOT* be a name to which the shell, Compose or Docker give a meaning, such as
+  `PATH`, `IFS`, `COMPOSE_*` or `DOCKER_*`. Rationale: sourcing the file, or using it as
+  Compose's `.env`, would change their behaviour.
+* A name *SHOULD* start with a prefix chosen by the project (`<PROJECT>_`). Rationale: it keeps
+  the names clear of those of other tools.
+
+[[triples]]
+== Triples
+
+* [[ddot-document]]The comment lines, each without its leading `#`, form a ddot.it document,
+  parsed as the link:https://ddot.it/spec/ddot-it-parse.html[ddot.it Parse Specification]
+  1.2.0 defines; its triples are the file's triples.
+* Triples whose subject is not a variable are not governed.
+* [[layout]]A variable's triples *SHOULD* stand directly above its assignment, opened by its
+  `..pins..` or `..variant of..` triple and continued in the form
+  `#   ..predicate.. object`.
+* Prose comments *MAY* appear on any line but the first.
+
+[[schema]]
+== Schema
+
+.Predicates per kind of variable; the subject is the variable's name
+[cols="2,2,2,4"]
+|===
+| Predicate | Object | Count | Meaning
+
+4+h| Common, for every kind
+| `..checked..` | a date, `YYYY-MM-DD` | 0-1, *SHOULD* be 1 | when the pin was last compared with the source: whether a newer release exists and, for an image reference with tag and digest, whether the digest still belongs to the tag
+| `..until..` | a date, `YYYY-MM-DD`, or prose | 0-1 | when the pin is to be revisited or removed, e.g. a canary after its rollout
+| `..support ends..` | a date, `YYYY-MM-DD` | 0-1 | end of upstream support for the pinned release line
+| `..used by..` | a path or a name | 0 or more | a consumer of the pin
+| `..on upgrade..` | prose, or a citation of the rule that requires it | 0 or more | what to check or do when the pin changes
+
+4+h| Internal and external variable
+| `..pins..` | the software's name, free text (`forgejo`, `ansible galaxy dependencies`) | 1 | the variable holds this software's pin (internal) or stands for it (external)
+| `..pinned in..` | a project-relative path | internal: 0; external: 1 | the file that holds the pin
+| `..source..` | a URL | 1 or more | where new releases and their notes are published
+| `..follows..` | a release line or moving tag as `..source..` names it (`stable-alpine-slim`, `3.1`, `lts`) | 0-1 | the line whose newest release is the next pin
+| `..version..` | a version string | internal: 0-1, 1 when the pin does not show the release; external: 0 | the release behind the pin, e.g. behind a digest; for a pin that moves by itself, such as a tag without a digest, the release it named on the `..checked..` date
+| `..because..` | prose | internal: 0-1, 1 when the pin is not the latest stable release; external: 0-1 | why; lifted when the reason no longer holds
+
+4+h| Variant, changing the rows of its kind
+| `..variant of..` | the base's name; the base *MUST* be a variable of the file and *MUST NOT* be a variant | 1 | the variable deviates from its base for one target
+| `..pins..` | | 0 | the base's applies
+| `..source..` | | 0 | the base's applies
+| `..because..` | prose | 1 | why the target deviates
+|===
+
+* A variable *MUST* have each common predicate and each predicate of its kind as often as its
+  count says; for a variant, the Variant rows replace those of its kind.
+* A variable *MUST NOT* have any other predicate. Rationale: a misspelt predicate would
+  otherwise drop a fact silently.
+* No predicate has a default: an absent predicate states nothing.
+
+Env files have no machine-readable schema format.
+
+[[reading]]
+== Reading
+
+* A consumer uses a variant by naming it, like any other variable.
+* A consumer *MUST NOT* use the value of an external variable.
+* A consumer *SHOULD* fail when a variable it needs is missing, rather than fall back to a
+  default. Rationale: a silent default deploys a version nobody chose.
+
+[[example]]
+== Example
+
+[source,sh]
+----
+# Conforms to spec-version_file 0.3.0
+# Versions of <project>, read by the shell, Compose and <config tool>.
+
+# PRJ_TOOL_VERSION ..pins.. <tool>
+#   ..source.. https://<tool-site>/releases
+#   ..checked.. 2026-01-15
+PRJ_TOOL_VERSION=4.2.0
+
+# PRJ_APP_IMAGE ..pins.. <app>
+#   ..version.. 3.1.7
+#   ..source.. https://<forge>/<app>/releases
+#   ..follows.. 3.1
+#   ..checked.. 2026-01-15
+#   ..because.. 3.2 drops the <feature> we rely on
+#   ..on upgrade.. recheck the <feature> flags, spec-<app>#<anchor>
+PRJ_APP_IMAGE=registry.example/app:3.1@sha256:0123abcd
+
+# PRJ_APP_WEB1_IMAGE ..variant of.. PRJ_APP_IMAGE
+#   ..version.. 3.2.0
+#   ..checked.. 2026-01-15
+#   ..because.. canary for the 3.2 rollout
+#   ..until.. 2026-02-01
+PRJ_APP_WEB1_IMAGE=registry.example/app:3.2@sha256:4567cdef
+
+# PRJ_GALAXY_DEPS_VERSION ..pins.. ansible galaxy dependencies
+#   ..pinned in.. requirements.yml
+#   ..source.. https://galaxy.ansible.com/
+#   ..checked.. 2026-01-15
+PRJ_GALAXY_DEPS_VERSION=__NOT_MANAGED_BY_versions.env__
+----
+
+[[changelog]]
+== Changelog
+
+* *0.3.0* -- New predicate `..follows..`: the release line whose newest release is the next
+  pin.
+  `..version..` of a pin that moves by itself holds as of `..checked..`.
+  No predicate has a default.
+* *0.2.0* -- Breaking: renamed from spec-version-file to conform to spec-specifications 2.0.0;
+  the first line of a version file names the new spec (<<conformance-line,conformance line>>).
+* *0.1.0* -- Initial draft, as spec-version-file.

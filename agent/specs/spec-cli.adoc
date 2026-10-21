@@ -1,6 +1,6 @@
 = Spec: CLI
 :toc:
-:spec-version: 1.3.0
+:spec-version: 1.3.1
 
 [[about]]
 == About this document
@@ -9,7 +9,7 @@
 |===
 | Name        | spec-cli
 | Version     | {spec-version}
-| Conforms to | spec-specifications 1.1.0
+| Conforms to | spec-specifications 2.0.0
 | Requires    | none
 |===
 
@@ -211,6 +211,7 @@ A fail-fast tool *MAY* run one multi-item operation continue-on-error, with the 
 [[changelog]]
 == Changelog
 
+* *1.3.1* -- Conforms to spec-specifications 2.0.0; no rule changes.
 * *1.3.0* -- Environment variables that stand for global options
   (<<option-variables,option variables>>); a tool may refuse `--help` and `--version` while a
   dependency is missing, stating why.

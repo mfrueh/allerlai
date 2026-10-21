@@ -1,6 +1,6 @@
 = Spec: OCI Images
 :toc:
-:spec-version: 0.1.0
+:spec-version: 0.2.0
 
 [[about]]
 == About this document
@@ -9,8 +9,8 @@
 |===
 | Name        | spec-oci-images
 | Version     | {spec-version}
-| Conforms to | spec-specifications 1.1.0
-| Requires    | spec-version-file >= 0.1
+| Conforms to | spec-specifications 2.0.0
+| Requires    | spec-version_file >= 0.2
 |===
 
 This document specifies how a project builds, tags, labels and publishes its own OCI images,
@@ -65,7 +65,7 @@ shared build script to enforce.
 | Term | Meaning
 
 | own image | An image the project builds itself (see <<scope>>).
-| version file | The project's version file per spec-version-file.
+| version file | The project's version file per spec-version_file.
 | build file | The `Containerfile` of an image: how the image is built.
 | build definition | The file that drives the build tool for one image: its build arguments and static labels (for example a `compose.yaml`).
 | project file | The file `oci-project.json` with the per-project values (<<project-file>>).
@@ -132,7 +132,7 @@ names in angle brackets stand for a part that differs per image or build.
 * Every version and image reference the image directory names *MUST* be resolved
   (<<resolving>>) or tracked in the version file: as an internal variable the build reads, or,
   where a tool can read it only from the build file, as an external variable
-  (spec-version-file).
+  (spec-version_file).
 * In a stable image, every image reference *MUST* carry the digest of the platform manifest for
   the platform it is pulled for (`<name>:<tag>@<digest>`), not the digest of an image index.
   Rationale: a change of what the build uses is then a deliberate edit with its own commit.
@@ -155,6 +155,13 @@ The format of a build definition is not governed; Compose is the recommended one
 It passes the build arguments to the build file: the image's version and the image references,
 from the version file, and the build-time values the entry point provides.
 Its static labels (<<labels>>) sit in it or as `LABEL` in the build file.
+
+* The entry point *MAY* pass build-time values in by any means that writes nothing into the
+  image directory: variables the build definition interpolates, build arguments, or a build
+  definition it generates outside the image directory and adds to the committed one (such as a
+  Compose overlay file).
+  Rationale: a value whose key depends on data, such as one `+$label-ns.component.<name>+`
+  label per resolved component, cannot be written as a variable into a committed file.
 
 * The *base image* of an image is the image its final stage descends from: the image named by
   that stage's `FROM`, or, where that names an earlier stage, the image that stage descends
@@ -371,8 +378,7 @@ Labels sit in the image configuration, where most tools read them, and survive a
   tools act on them; a key left alone shows the base image's value.
 * `created`, `revision`, `$label-ns.build`, `$label-ns.conforms-to` and resolved
   `+$label-ns.component.*+` labels *MUST* be
-  set at build time: the entry point passes their values in, as variables the build definition
-  interpolates or as build arguments the build file turns into `LABEL`s.
+  set at build time: the entry point passes them in (<<build-definition>>).
   Their values *MUST NOT* be written literally into the image directory.
 * `revision` *MUST* name the commit of the repository that holds the image directory (<<dirty>>),
   also when the packaged software comes from upstream.
@@ -520,6 +526,11 @@ PRJ_ALPINE_IMAGE=alpine:3.22@sha256:0123abcd
 [[changelog]]
 == Changelog
 
+* *0.2.0* -- Breaking: requires spec-version_file, the renamed spec-version-file, so the version
+  file's first line names it.
+  Conforms to spec-specifications 2.0.0.
+  The entry point may pass build-time values in by any means that writes nothing into the
+  image directory, including a generated build definition such as a Compose overlay file.
 * *0.1.0* -- Breaking: complete rewrite as a versioned spec conforming to spec-specifications
   1.1.0; replaces the unversioned conventions.
   The chosen version lives in the version file (spec-version-file), not in the compose `image:`

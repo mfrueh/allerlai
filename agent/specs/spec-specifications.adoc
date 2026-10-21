@@ -182,6 +182,8 @@ to one component or deployment.
 
 * Each spec *MUST* be versioned independently with semver: a breaking rule change bumps
   major, an additive rule bumps minor, a clarification bumps patch.
+* [[pre-release-breaking]]Below 1.0.0, a breaking rule change *MAY* bump minor instead.
+  Rationale: semver lets a 0.x version change anything, and a draft stays a draft.
 * [[changelog-format]]The *Changelog* *MUST* list every version. It *SHOULD* list them
   newest first, one list item per version, starting with the version in bold.
 * The text of a breaking changelog entry *MUST* start with `Breaking:`, after the version.
@@ -194,6 +196,8 @@ to one component or deployment.
 * The line *MUST* sit in a top-of-file comment or, when the artifact cannot hold a comment,
   in its README or metadata (an OCI label, for example). For a spec, it is the
   `Conforms to` row, which holds `spec-specifications X.Y.Z`.
+* [[conforms-to-key]]Metadata whose key already says that it records conformance (a
+  `$conforms_to` key, a `conforms-to` label) *MAY* hold `<name> X.Y.Z` without `Conforms to`.
 * Artifacts maintained together *SHOULD* have one conformance summary, linked from their
   entry document (typically a top-level README). The summary states which specs they
   follow at which versions. Rationale: the per-artifact lines answer "is
@@ -218,6 +222,8 @@ to one component or deployment.
   separates the parts of a name, which may carry a scope, the ecosystem whose artifacts the
   spec governs (<<spec-name,name>>, <<name-scope,scope>>).
   Added: the conformance summary lists the specs a repository defines, with their location
-  (<<spec-index,spec index>>).
+  (<<spec-index,spec index>>); metadata keyed as conformance may omit `Conforms to`
+  (<<conforms-to-key,conformance key>>); below 1.0.0 a breaking change may bump minor
+  (<<pre-release-breaking,pre-release>>).
 * *1.1.0* -- Optional section *Terms* after *Design Goal* (<<terms,terms>>).
 * *1.0.0* -- Initial spec.
