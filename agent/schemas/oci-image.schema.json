@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/mfrueh/allerlai/0.6.0/agent/schemas/oci-image.schema.json",
+  "$id": "https://raw.githubusercontent.com/mfrueh/allerlai/0.7.0/agent/schemas/oci-image.schema.json",
   "title": "oci-image.json",
   "description": "Per-image values of spec-oci-images, in each image directory.",
   "type": "object",
   "required": ["$schema", "$conforms_to", "channel", "version_scheme", "kept_base_labels"],
   "properties": {
-    "$schema": { "const": "https://raw.githubusercontent.com/mfrueh/allerlai/0.6.0/agent/schemas/oci-image.schema.json", "description": "The $id of this schema." },
-    "$conforms_to": { "const": "spec-oci-images 0.1.0", "description": "The spec version the file conforms to." },
+    "$schema": { "const": "https://raw.githubusercontent.com/mfrueh/allerlai/0.7.0/agent/schemas/oci-image.schema.json", "description": "The $id of this schema." },
+    "$conforms_to": { "const": "spec-oci-images 0.2.0", "description": "The spec version the file conforms to." },
     "channel": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9_]*$",
