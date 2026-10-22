@@ -1,6 +1,6 @@
 = Spec: Version File
 :toc:
-:spec-version: 0.3.0
+:spec-version: 0.4.0
 
 [[about]]
 == About this document
@@ -154,7 +154,7 @@ describe the pin, not the software, which may have several pins.
 | `..pins..` | the software's name, free text (`forgejo`, `ansible galaxy dependencies`) | 1 | the variable holds this software's pin (internal) or stands for it (external)
 | `..pinned in..` | a project-relative path | internal: 0; external: 1 | the file that holds the pin
 | `..source..` | a URL | 1 or more | where new releases and their notes are published
-| `..follows..` | a release line or moving tag as `..source..` names it (`stable-alpine-slim`, `3.1`, `lts`) | 0-1 | the line whose newest release is the next pin
+| `..follows..` | a release line or moving tag as `..source..` names it (`stable-alpine-slim`, `3.1`, `lts`) | 0-1, *SHOULD* be 1 | the line whose newest release is the next pin
 | `..version..` | a version string | internal: 0-1, 1 when the pin does not show the release; external: 0 | the release behind the pin, e.g. behind a digest; for a pin that moves by itself, such as a tag without a digest, the release it named on the `..checked..` date
 | `..because..` | prose | internal: 0-1, 1 when the pin is not the latest stable release; external: 0-1 | why; lifted when the reason no longer holds
 
@@ -186,11 +186,12 @@ Env files have no machine-readable schema format.
 
 [source,sh]
 ----
-# Conforms to spec-version_file 0.3.0
+# Conforms to spec-version_file 0.4.0
 # Versions of <project>, read by the shell, Compose and <config tool>.
 
 # PRJ_TOOL_VERSION ..pins.. <tool>
 #   ..source.. https://<tool-site>/releases
+#   ..follows.. 4
 #   ..checked.. 2026-01-15
 PRJ_TOOL_VERSION=4.2.0
 
@@ -205,6 +206,7 @@ PRJ_APP_IMAGE=registry.example/app:3.1@sha256:0123abcd
 
 # PRJ_APP_WEB1_IMAGE ..variant of.. PRJ_APP_IMAGE
 #   ..version.. 3.2.0
+#   ..follows.. 3.2
 #   ..checked.. 2026-01-15
 #   ..because.. canary for the 3.2 rollout
 #   ..until.. 2026-02-01
@@ -220,6 +222,7 @@ PRJ_GALAXY_DEPS_VERSION=__NOT_MANAGED_BY_versions.env__
 [[changelog]]
 == Changelog
 
+* *0.4.0* -- `..follows..` *SHOULD* be given.
 * *0.3.0* -- New predicate `..follows..`: the release line whose newest release is the next
   pin.
   `..version..` of a pin that moves by itself holds as of `..checked..`.
