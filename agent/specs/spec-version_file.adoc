@@ -122,6 +122,11 @@ describe the pin, not the software, which may have several pins.
   Compose's `.env`, would change their behaviour.
 * A name *SHOULD* start with a prefix chosen by the project (`<PROJECT>_`). Rationale: it keeps
   the names clear of those of other tools.
+* [[all-platforms]]A pin *SHOULD* be one value for all platforms: an image reference carries the
+  digest of the image index, not of a platform manifest; a download is pinned by the checksum
+  of a checksum file that lists the files of all platforms.
+  Rationale: platforms then need no variables of their own to keep in step, and no consumer
+  needs code that picks the value for its platform.
 
 [[triples]]
 == Triples
@@ -144,7 +149,8 @@ describe the pin, not the software, which may have several pins.
 | Predicate | Object | Count | Meaning
 
 4+h| Common, for every kind
-| `..checked..` | a date, `YYYY-MM-DD` | 0-1, *SHOULD* be 1 | when the pin was last compared with the source: whether a newer release exists and, for an image reference with tag and digest, whether the digest still belongs to the tag
+| `..checked..` | a date, `YYYY-MM-DD` | 0-1, *SHOULD* be 1 | when the pin was last compared with the source: whether a newer release exists, for an image reference with tag and digest whether the digest still belongs to the tag, and whether the pin covers each `..platform..`
+| `..platform..` | a platform, `os/arch[/variant]` (`linux/amd64`, `linux/arm64`) | 0 or more | a platform the pin must cover; a bump checks that the new pin has an entry for it, such as a manifest in the image index; without a variant, an entry of any variant matches (`linux/arm64/v8` for `linux/arm64`)
 | `..until..` | a date, `YYYY-MM-DD`, or prose | 0-1 | when the pin is to be revisited or removed, e.g. a canary after its rollout
 | `..support ends..` | a date, `YYYY-MM-DD` | 0-1 | end of upstream support for the pinned release line
 | `..used by..` | a path or a name | 0 or more | a consumer of the pin
@@ -167,8 +173,10 @@ describe the pin, not the software, which may have several pins.
 
 * A variable *MUST* have each common predicate and each predicate of its kind as often as its
   count says; for a variant, the Variant rows replace those of its kind.
-* A variable *MUST NOT* have any other predicate. Rationale: a misspelt predicate would
-  otherwise drop a fact silently.
+* A variable *SHOULD NOT* have any other predicate. Rationale: the listed predicates keep
+  version files alike across projects.
+* A tool that checks the file *SHOULD* warn about any other predicate. Rationale: a misspelt
+  predicate would otherwise drop a fact silently.
 * No predicate has a default: an absent predicate states nothing.
 
 Env files have no machine-readable schema format.
@@ -199,6 +207,8 @@ PRJ_TOOL_VERSION=4.2.0
 #   ..version.. 3.1.7
 #   ..source.. https://<forge>/<app>/releases
 #   ..follows.. 3.1
+#   ..platform.. linux/amd64
+#   ..platform.. linux/arm64
 #   ..checked.. 2026-01-15
 #   ..because.. 3.2 drops the <feature> we rely on
 #   ..on upgrade.. recheck the <feature> flags, spec-<app>#<anchor>
@@ -223,6 +233,10 @@ PRJ_GALAXY_DEPS_VERSION=__NOT_MANAGED_BY_versions.env__
 == Changelog
 
 * *0.4.0* -- `..follows..` *SHOULD* be given.
+  Predicates outside the schema are allowed, but *SHOULD NOT* be used; checkers warn about
+  them.
+  A pin *SHOULD* be one value for all platforms (<<all-platforms>>).
+  New predicate `..platform..`: a platform the pin must cover.
 * *0.3.0* -- New predicate `..follows..`: the release line whose newest release is the next
   pin.
   `..version..` of a pin that moves by itself holds as of `..checked..`.
