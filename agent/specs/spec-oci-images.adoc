@@ -1,6 +1,6 @@
 = Spec: OCI Images
 :toc:
-:spec-version: 0.2.0
+:spec-version: 0.3.0
 
 [[about]]
 == About this document
@@ -10,7 +10,7 @@
 | Name        | spec-oci-images
 | Version     | {spec-version}
 | Conforms to | spec-specifications 2.0.0
-| Requires    | spec-version_file >= 0.2
+| Requires    | spec-version_file >= 0.4
 |===
 
 This document specifies how a project builds, tags, labels and publishes its own OCI images,
@@ -34,7 +34,7 @@ and how the project's deployments reference them.
 How deployments reference third-party images is not governed.
 Neither is how a host lays out the files of running services, how long a registry keeps old
 builds, or supply-chain metadata such as SBOMs, provenance attestations and signatures.
-Images built for several platforms at once are not governed yet (<<open-decisions>>).
+How an own image is built for several platforms at once is not governed yet (<<open-decisions>>).
 Where this document says how a deployment references an image, it recommends; a deployment
 *MAY* choose otherwise, for example pin a single pre-release build by digest.
 
@@ -133,8 +133,8 @@ names in angle brackets stand for a part that differs per image or build.
   (<<resolving>>) or tracked in the version file: as an internal variable the build reads, or,
   where a tool can read it only from the build file, as an external variable
   (spec-version_file).
-* In a stable image, every image reference *MUST* carry the digest of the platform manifest for
-  the platform it is pulled for (`<name>:<tag>@<digest>`), not the digest of an image index.
+* In a stable image, every image reference *MUST* carry a digest (`<name>:<tag>@<digest>`);
+  which digest, spec-version_file#all-platforms recommends.
   Rationale: a change of what the build uses is then a deliberate edit with its own commit.
 * In a pre-release image, image references *SHOULD* carry a tag only.
   Rationale: such an image picks up updates of the images it uses on every scheduled build.
@@ -364,7 +364,7 @@ Labels sit in the image configuration, where most tools read them, and survive a
 | `org.opencontainers.image.vendor` | yes | `$vendor`.
 | `org.opencontainers.image.authors` | yes | `$authors`.
 | `org.opencontainers.image.base.name` | stable with a base image: yes; pre-release: *SHOULD* | The fully qualified reference of the base image the build used.
-| `org.opencontainers.image.base.digest` | stable with a base image: yes; pre-release: *SHOULD* | The digest of the platform manifest of the base image the build actually used; for a stable image the same value as its pin.
+| `org.opencontainers.image.base.digest` | stable with a base image: yes; pre-release: *SHOULD* | The digest the build's base image reference resolved to; for a stable image the same value as its pin.
 | `$label-ns.build` | yes | The unique tag of the build.
 | `$label-ns.conforms-to` | yes | `spec-oci-images X.Y.Z`, the version of this spec the build was made under (spec-specifications#conforms-to).
 | `$label-ns.component.<name>` | for each component of an image with several | The version of component `<name>` (<<components>>).
@@ -519,13 +519,15 @@ PRJ_ALPINE_IMAGE=alpine:3.22@sha256:0123abcd
 [[open-decisions]]
 == Open decisions
 
-* Images built for several platforms: how their references are pinned (one pin per platform)
-  and labelled.
+* Own images built for several platforms: how they are built, tagged and labelled.
   Needed to close it: a first image that needs more than one platform.
 
 [[changelog]]
 == Changelog
 
+* *0.3.0* -- Requires spec-version_file 0.4.
+  A stable image's references carry a digest of the kind spec-version_file#all-platforms
+  recommends, no longer necessarily that of a platform manifest; `base.digest` follows the pin.
 * *0.2.0* -- Breaking: requires spec-version_file, the renamed spec-version-file, so the version
   file's first line names it.
   Conforms to spec-specifications 2.0.0.
