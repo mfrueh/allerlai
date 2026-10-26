@@ -495,17 +495,20 @@ A version file of a stable image and the tags of its builds, with placeholders.
 ----
 # PRJ_TOOL_VERSION ..pins.. tool
 #   ..source.. https://<registry-host>/<registry-namespace>/tool
+#   ..follows.. 1
 #   ..checked.. 2026-01-15
 PRJ_TOOL_VERSION=1.2.0
 
 # PRJ_TOOL_REVISION ..pins.. tool packaging
 #   ..source.. https://<registry-host>/<registry-namespace>/tool
+#   ..follows.. 1.2.0
 #   ..checked.. 2026-01-15
 PRJ_TOOL_REVISION=7
 
 # PRJ_ALPINE_IMAGE ..pins.. alpine
 #   ..version.. 3.22.2
 #   ..source.. https://alpinelinux.org/releases/
+#   ..follows.. 3.22
 #   ..checked.. 2026-01-15
 PRJ_ALPINE_IMAGE=alpine:3.22@sha256:0123abcd
 ----
