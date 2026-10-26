@@ -175,8 +175,6 @@ describe the pin, not the software, which may have several pins.
   count says; for a variant, the Variant rows replace those of its kind.
 * A variable *SHOULD NOT* have any other predicate. Rationale: the listed predicates keep
   version files alike across projects.
-* A tool that checks the file *SHOULD* warn about any other predicate. Rationale: a misspelt
-  predicate would otherwise drop a fact silently.
 * No predicate has a default: an absent predicate states nothing.
 
 Env files have no machine-readable schema format.
@@ -233,8 +231,7 @@ PRJ_GALAXY_DEPS_VERSION=__NOT_MANAGED_BY_versions.env__
 == Changelog
 
 * *0.4.0* -- `..follows..` *SHOULD* be given.
-  Predicates outside the schema are allowed, but *SHOULD NOT* be used; checkers warn about
-  them.
+  Predicates outside the schema are allowed, but *SHOULD NOT* be used.
   A pin *SHOULD* be one value for all platforms (<<all-platforms>>).
   New predicate `..platform..`: a platform the pin must cover.
 * *0.3.0* -- New predicate `..follows..`: the release line whose newest release is the next
