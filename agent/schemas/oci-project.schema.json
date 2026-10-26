@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/mfrueh/allerlai/0.7.0/agent/schemas/oci-project.schema.json",
+  "$id": "https://raw.githubusercontent.com/mfrueh/allerlai/0.8.0/agent/schemas/oci-project.schema.json",
   "title": "oci-project.json",
   "description": "Per-project values of spec-oci-images, at the root of the repository that holds the image directories.",
   "type": "object",
@@ -9,8 +9,8 @@
     "registry_namespace", "label_ns", "prefix"
   ],
   "properties": {
-    "$schema": { "const": "https://raw.githubusercontent.com/mfrueh/allerlai/0.7.0/agent/schemas/oci-project.schema.json", "description": "The $id of this schema." },
-    "$conforms_to": { "const": "spec-oci-images 0.2.0", "description": "The spec version the file conforms to." },
+    "$schema": { "const": "https://raw.githubusercontent.com/mfrueh/allerlai/0.8.0/agent/schemas/oci-project.schema.json", "description": "The $id of this schema." },
+    "$conforms_to": { "const": "spec-oci-images 0.3.0", "description": "The spec version the file conforms to." },
     "vendor": { "type": "string", "minLength": 1, "description": "The organisation, for the vendor label." },
     "authors": {
       "type": "array",
